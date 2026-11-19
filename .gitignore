@@ -1,0 +1,10 @@
+.env*.local
+node_modules/
+dist/
+dist-prod/
+extension/.keys/
+.backup/
+.kiro/
+.firebase/
+*.log
+.DS_Store

@@ -1,0 +1,9 @@
+{
+  "parameters": {
+    "cloud_model": {
+      "defaultValue": { "value": "gemini-3.5-flash-lite" },
+      "description": "Gemini model for cloud requests (English cards and translations). Change it here if the model is retired.",
+      "valueType": "STRING"
+    }
+  }
+}

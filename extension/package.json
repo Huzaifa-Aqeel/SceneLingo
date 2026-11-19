@@ -1,0 +1,15 @@
+{
+  "name": "scenelingo-extension",
+  "private": true,
+  "version": "2.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "node ../scripts/build-extension.mjs",
+    "build:dev": "node ../scripts/build-extension.mjs --dev",
+    "test": "node --test \"test/*.test.js\"",
+    "package": "node ../scripts/package-extension.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.65.1"
+  }
+}

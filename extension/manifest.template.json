@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "SceneLingo",
+  "version": "2.0.0",
+  "description": "Click a subtitle while you watch to save it. Learn it later in SceneLingo.",
+  "key": "__KEY__",
+  "permissions": ["storage", "alarms", "scripting"],
+  "host_permissions": "__HOST_PERMISSIONS__",
+  "action": { "default_title": "Open SceneLingo" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "externally_connectable": { "matches": "__EXTERNAL_MATCHES__" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*", "https://www.netflix.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
