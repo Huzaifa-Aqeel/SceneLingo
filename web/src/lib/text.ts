@@ -80,8 +80,3 @@ export function blankOut(sentence: string, term: string): { before: string; matc
   if (i < 0) return null;
   return { before: sentence.slice(0, i), match: sentence.slice(i, i + t.length), after: sentence.slice(i + t.length) };
 }
-
-export const isCorrectAnswer = (input: string, term: string): boolean => {
-  const a = normalizeText(input);
-  return a.length > 0 && a === normalizeText(term);
-};

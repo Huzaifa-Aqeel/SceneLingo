@@ -1,12 +1,12 @@
 import { Link } from "react-router";
 import type { User } from "firebase/auth";
-import { Layers, ListChecks, PenLine, RotateCcw } from "lucide-react";
+import { Layers, ListChecks, Repeat2, RotateCcw } from "lucide-react";
 import { Empty } from "@/components/Empty";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/useCards";
-import { blankOut } from "@/lib/text";
+import { QUIZ_MIN_CARDS } from "@/lib/quiz";
 import { dueCount, mistakes } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +33,7 @@ export default function Practice({ user }: { user: User }) {
   const now = new Date();
   const due = dueCount(cards, now);
   const wrong = mistakes(cards).length;
-  const fillable = cards.filter((c) => blankOut(c.sourceSentence, c.selectedText)).length;
+  const reversible = cards.filter((c) => c.selectionKind !== "sentence").length;
 
   return (
     <>
@@ -46,10 +46,10 @@ export default function Practice({ user }: { user: User }) {
         <Button asChild variant="secondary" size="lg"><Link to={due > 0 ? "/practice/flashcards?set=due" : "/practice/flashcards?set=all"}>{due > 0 ? "Start" : "Study anyway"}</Link></Button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Tile to="/practice/flashcards?set=all" icon={Layers} title="Flashcards" text="Flip through your cards." />
-        <Tile to="/practice/quiz" icon={ListChecks} title="Quiz" text="Choose the right meaning." disabled={cards.length < 2} />
-        <Tile to="/practice/fill" icon={PenLine} title="Fill in the blank" text={fillable ? "Complete the sentence." : "Needs a card with its sentence."} disabled={fillable === 0} />
-        <Tile to="/practice/flashcards?set=mistakes" icon={RotateCcw} title="Review mistakes" text={wrong ? `${wrong} to revisit.` : "No mistakes. Nice."} disabled={wrong === 0} />
+        <Tile to="/practice/flashcards?set=all" icon={Layers} title="Flashcards" text="See the term, recall the meaning." />
+        <Tile to="/practice/flashcards?set=all&dir=reverse" icon={Repeat2} title="Reverse flashcards" text={reversible ? "See the meaning, recall the term." : "Needs a word or phrase card."} disabled={reversible === 0} />
+        <Tile to="/practice/quiz" icon={ListChecks} title="Quiz" text={cards.length >= QUIZ_MIN_CARDS ? "Test yourself with three kinds of questions." : `Save ${QUIZ_MIN_CARDS - cards.length} more to unlock.`} disabled={cards.length < QUIZ_MIN_CARDS} />
+        <Tile to="/practice/flashcards?set=mistakes" icon={RotateCcw} title="Review mistakes" text={wrong ? `${wrong} to revisit, most missed first.` : "No mistakes. Nice."} disabled={wrong === 0} />
       </div>
     </>
   );

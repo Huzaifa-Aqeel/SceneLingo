@@ -14,7 +14,7 @@ You need desktop Chrome.
 2. **Install the extension.** In **Profile**, under **Extension**, choose **Download extension** and follow the four steps shown there (unzip, open `chrome://extensions`, turn on Developer mode, Load unpacked). The same zip is in this repository at [`release/scenelingo-extension.zip`](release/scenelingo-extension.zip). The extension picks up your sign-in by itself.
 3. **Open any YouTube video with captions** (press `c` to turn them on) and click a subtitle line. A short confirmation appears and the video keeps playing. If the tab was already open before you installed the extension, that's fine: no refresh is needed.
 4. **Open the app** (click the extension icon). The subtitle is in your **Inbox**. Choose **Explore**, select a word, a phrase, or the whole sentence, and press **Explain**.
-5. Choose your language in **Profile** to translate cards. Save a card, then use **Practice** (flashcards, quiz, fill in the blank, mistakes) and **Progress**.
+5. Choose your language in **Profile** to translate cards. Save a card, then use **Practice** (flashcards, reverse flashcards, a three-format quiz, mistakes) and **Progress**.
 
 ### On-device AI
 

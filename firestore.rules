@@ -72,7 +72,9 @@ service cloud.firestore {
         allow read: if isOwner(uid);
         allow create: if isOwner(uid)
           && request.resource.data.cardId is string
-          && request.resource.data.result in ['correct', 'incorrect'];
+          && request.resource.data.result in ['correct', 'incorrect']
+          && (!('rating' in request.resource.data)
+              || request.resource.data.rating in ['again', 'hard', 'good', 'easy']);
         allow update: if false;
         allow delete: if isOwner(uid);
       }

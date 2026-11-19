@@ -5,7 +5,7 @@ import {
 import { db } from "@/firebase";
 import type { EnglishCardContent, InferenceSource, LearningCard } from "@/lib/schemas";
 import { cardIdFor, normalizeText, type SelectionKind } from "@/lib/text";
-import { nextReview } from "@/lib/schedule";
+import { nextReview, type Rating } from "@/lib/schedule";
 import { translationKey } from "@/languages";
 import type { TranslationResult } from "@/ai/translate";
 
@@ -80,16 +80,21 @@ export const addTranslation = (uid: string, cardId: string, t: TranslationResult
 
 export const deleteCard = (uid: string, cardId: string) => deleteDoc(cardRef(uid, cardId));
 
-export type PracticeMode = "flashcard" | "quiz" | "fill" | "mistakes";
+export type PracticeMode = "flashcard" | "reverse" | "quiz" | "mistakes";
 
 // One atomic write: the review event (history) and the card's current statistics change together or not at all.
-export async function recordReview(uid: string, card: LearningCard, correct: boolean, mode: PracticeMode, now = new Date()): Promise<void> {
-  const { stage, dueAt } = nextReview(card.review.reviewStage, correct, now);
+// Only forward flashcards move a card up the ladder. In the other modes a miss sends the card back to the
+// start (due in minutes) and a correct answer leaves its date alone.
+export async function recordReview(uid: string, card: LearningCard, rating: Rating, mode: PracticeMode, now = new Date()): Promise<void> {
+  const correct = rating !== "again";
+  const moves = mode === "flashcard" || mode === "mistakes" || !correct;
+  const { stage, dueAt } = nextReview(card.review.reviewStage, rating, now);
   const batch = writeBatch(db);
   batch.set(doc(collection(db, "users", uid, "reviewEvents")), {
     cardId: card.id,
     mode,
     result: correct ? "correct" : "incorrect",
+    rating,
     reviewedAt: Timestamp.fromDate(now),
     createdAt: serverTimestamp(),
   });
@@ -99,8 +104,7 @@ export async function recordReview(uid: string, card: LearningCard, correct: boo
     "review.incorrectCount": increment(correct ? 0 : 1),
     "review.lastResult": correct ? "correct" : "incorrect",
     "review.lastReviewedAt": Timestamp.fromDate(now),
-    "review.nextReviewAt": Timestamp.fromDate(dueAt),
-    "review.reviewStage": stage,
+    ...(moves ? { "review.nextReviewAt": Timestamp.fromDate(dueAt), "review.reviewStage": stage } : {}),
     updatedAt: serverTimestamp(),
   });
   await batch.commit();

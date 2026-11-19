@@ -5,7 +5,7 @@ import { CATEGORIES, englishCardOutputSchema, type EnglishCardContent } from "@/
 import type { SelectionKind } from "@/lib/text";
 import { CLOUD_MODEL, getAi, getCloudModel, sourceOf, type Source } from "./client";
 
-export const ENGLISH_PROMPT_VERSION = "1.0";
+export const ENGLISH_PROMPT_VERSION = "1.1";
 
 export interface ExplainInput {
   selectedText: string;
@@ -45,8 +45,8 @@ export function buildExplainPrompt(i: ExplainInput): string {
     `- meaningEn: a short plain-English definition.`,
     `- contextualMeaningEn: what it means in THIS sentence.`,
     `- partOfSpeech: for a single word only; omit otherwise.`,
-    `- synonyms: up to 3 that are genuinely close in this context; an empty list is fine.`,
-    `- exampleSentences: 1 or 2 natural, original sentences. Do not copy the subtitle.`,
+    `- synonyms: 4 to 6 words or expressions with a similar meaning in this context, most useful first. Fewer only if there truly are no more.`,
+    `- exampleSentences: 3 or 4 natural, original sentences in different everyday situations. Do not copy the subtitle.`,
     `- usageNote: optional note on register or formality.`,
     `- confidenceNote: only if the context is too thin to be sure; say the meaning may depend on the scene.`,
     `For an idiom, explain the idiomatic meaning, not the literal words. For a whole sentence, explain what is useful in it.`,

@@ -59,7 +59,7 @@ page.on("console", (m) => { const t = m.text(); if (/Content Security Policy|Ref
 page.on("pageerror", (e) => problems.push("pageerror: " + String(e).slice(0, 160)));
 
 let aiCalls = { card: 0, translate: 0 };
-const ENGLISH = { category: "idiom", meaningEn: "To make plans or decisions too early, before the facts are known.", contextualMeaningEn: "The speaker thinks the group is rushing ahead.", partOfSpeech: null, synonyms: ["jump the gun", "rush ahead"], exampleSentences: ["Let's wait for the results; we don't want to get ahead of ourselves."], usageNote: "Common in conversation.", confidenceNote: null };
+const ENGLISH = { category: "idiom", meaningEn: "To make plans or decisions too early, before the facts are known.", contextualMeaningEn: "The speaker thinks the group is rushing ahead.", partOfSpeech: null, synonyms: ["jump the gun", "rush ahead", "assume too much", "move too fast"], exampleSentences: ["Let's wait for the results; we don't want to get ahead of ourselves.", "She was getting ahead of herself, planning the party before she was invited.", "Don't get ahead of yourself; we haven't won yet."], usageNote: "Common in conversation.", confidenceNote: null };
 const TRANSLATION = { translation: "adelantarnos a los hechos", explanation: "Significa actuar o decidir antes de tiempo.", literalMeaningNote: null };
 await page.route("https://firebasevertexai.googleapis.com/**", async (route) => {
   const body = route.request().postData() || "";
@@ -74,7 +74,7 @@ const text = async (sel) => (await page.locator(sel).first().innerText().catch((
 const shot = (n) => page.screenshot({ path: `${SHOTS}/${n}.png` });
 const getDoc = async (p) => (await rest("GET", `${DOCS}/${p}`, idToken));
 const listIds = async (col) => ((await rest("GET", `${DOCS}/users/${uid}/${col}?pageSize=100`, idToken)).json.documents || []).map((d) => d.name.split("/").pop());
-const events = async () => ((await rest("GET", `${DOCS}/users/${uid}/reviewEvents?pageSize=200`, idToken)).json.documents || []).map((d) => ({ mode: d.fields.mode.stringValue, result: d.fields.result.stringValue, cardId: d.fields.cardId.stringValue }));
+const events = async () => ((await rest("GET", `${DOCS}/users/${uid}/reviewEvents?pageSize=200`, idToken)).json.documents || []).map((d) => ({ mode: d.fields.mode.stringValue, result: d.fields.result.stringValue, cardId: d.fields.cardId.stringValue, rating: d.fields.rating?.stringValue ?? null }));
 
 try {
   // ---------------------------------------------------------------- sign in
@@ -102,7 +102,7 @@ try {
 
   // ---------------------------------------------------------------- explain
   await page.getByRole("button", { name: "Explain" }).click();
-  check("a card appears with the meaning, similar words, an example and where it was produced", await until(async () => { const t = await text("main"); return /rush ahead/i.test(t) && /Examples/i.test(t) && /Cloud|On your device/i.test(t); }, 15000), await text("main"));
+  check("a card appears with the meaning, similar words, an example and where it was produced", await until(async () => { const t = await text("main"); return /rush ahead/i.test(t) && /move too fast/i.test(t) && /Don't get ahead of yourself/i.test(t) && /Examples/i.test(t) && /Cloud|On your device/i.test(t); }, 15000), await text("main"));
   check("exactly one AI request was made for the card", aiCalls.card === 1, aiCalls.card);
   await shot("03-explore-card");
 
@@ -156,68 +156,79 @@ try {
 
   // ---------------------------------------------------------------- practice: flashcards
   await page.getByRole("link", { name: /Practice/ }).click();
-  check("Practice shows what is due and four ways to study", await until(async () => /5 cards/.test(await text("main")) && (await page.getByText("Flashcards").count()) > 0 && (await page.getByText("Quiz").count()) > 0 && (await page.getByText("Fill in the blank").count()) > 0, 8000));
+  check("Practice shows what is due and four ways to study", await until(async () => /5 cards/.test(await text("main")) && (await page.getByText("Flashcards", { exact: true }).count()) > 0 && (await page.getByText("Reverse flashcards").count()) > 0 && (await page.getByText("Quiz", { exact: true }).count()) > 0 && (await page.getByText("Review mistakes").count()) > 0 && (await page.getByText("Fill in the blank").count()) === 0, 8000));
   await shot("05-practice");
   await page.getByRole("link", { name: "Start" }).click();
   await page.waitForSelector('[role="button"][aria-label="Show the answer"]', { timeout: 10000 });
-  check("the flashcard shows the term first", /1 \/ 5/.test(await text("main")));
-  await page.locator('[role="button"][aria-label="Show the answer"]').click();
-  check("clicking flips it to the meaning", await until(async () => (await page.locator('[role="button"][aria-label="Show the term"]').count()) > 0, 3000));
+  check("the flashcard asks a question, shows the term, and offers a Reveal button", /1 \/ 5/.test(await text("main")) && /What does this mean\?/.test(await text("main")) && (await page.getByRole("button", { name: "Reveal answer" }).count()) === 1 && (await page.getByRole("button", { name: "Easy" }).count()) === 0);
+  await page.getByRole("button", { name: "Reveal answer" }).click();
+  check("revealing flips it to the answer and shows four ratings with their next gaps", await until(async () => (await page.locator('[role="button"][aria-label="Show the term"]').count()) > 0 && (await page.getByRole("button", { name: /^Again\s*10 min/ }).count()) === 1 && (await page.getByRole("button", { name: /^Difficult\s*1 day/ }).count()) === 1 && (await page.getByRole("button", { name: /^Good\s*3 days/ }).count()) === 1 && (await page.getByRole("button", { name: /^Easy\s*7 days/ }).count()) === 1, 3000), await text("main"));
+  check("the back shows the type, examples and the scene it came from", await until(async () => { const t = await text("main"); return /Examples/i.test(t) && /From the scene/i.test(t) && /(Idiom|Vocabulary|Slang|Expression)/i.test(t); }, 3000));
   await sleep(900); // let the flip animation finish before the screenshot
   await shot("06-flashcard-back");
-  await page.getByRole("button", { name: "Got it" }).click();
-  await page.getByRole("button", { name: "Still learning" }).click();   // card 2 missed -> comes back once
-  await page.keyboard.press("ArrowRight");                                // keyboard: got it
-  await page.keyboard.press("ArrowRight");
-  await page.keyboard.press("ArrowRight");
-  check("a missed card comes round again at the end of the session", await until(async () => /\/ 6/.test(await text("main")), 5000), await text("main"));
-  await page.keyboard.press("ArrowRight");                                // the repeated card
+  await page.getByRole("button", { name: /^Good/ }).click();                 // card 1: Good
+  await page.keyboard.press("Space");                                          // reveal with the keyboard
+  await page.keyboard.press("1");                                              // card 2: Again -> comes back once
+  await page.getByRole("button", { name: "Reveal answer" }).click(); await page.keyboard.press("4");   // card 3: Easy
+  await page.getByRole("button", { name: "Reveal answer" }).click(); await page.keyboard.press("2");   // card 4: Difficult
+  check("a card marked Again comes round once more at the end of the session", await until(async () => /5 \/ 6/.test(await text("main")), 5000), await text("main"));
+  await page.getByRole("button", { name: "Reveal answer" }).click(); await page.keyboard.press("3");   // card 5: Good
+  await page.getByRole("button", { name: "Reveal answer" }).click(); await page.keyboard.press("3");   // the repeated card: Good
   check("the session ends with a summary", await until(async () => (await page.getByText("Nice work").count()) > 0, 8000));
   await shot("07-flashcard-done");
 
   const ev1 = await until(async () => { const e = await events(); return e.length === 6 ? e : false; }, 10000);
   check("every rating wrote a review event (6 answers)", !!ev1, JSON.stringify((await events()).length));
-  check("events carry the mode and the result", !!ev1 && ev1.every((e) => e.mode === "flashcard") && ev1.filter((e) => e.result === "incorrect").length === 1);
+  check("events carry the mode, the result and the rating", !!ev1 && ev1.every((e) => e.mode === "flashcard") && ev1.filter((e) => e.result === "incorrect").length === 1 && ["again", "hard", "good", "easy"].every((r) => ev1.some((e) => e.rating === r)), JSON.stringify(ev1?.map((e) => e.rating)));
   const missedId = ev1 && ev1.find((e) => e.result === "incorrect").cardId;
   const missedCard = (await getDoc(`users/${uid}/learningCards/${missedId}`)).json.fields;
   const rv = missedCard.review.mapValue.fields;
   check("the card's own statistics changed with its events (attempts, wrong count, last result)", rv.attemptCount.integerValue === "2" && rv.incorrectCount.integerValue === "1" && rv.lastResult.stringValue === "correct", JSON.stringify(rv));
-  check("a card answered correctly is scheduled for later; the next review date is stored", !!rv.nextReviewAt?.timestampValue && Number(rv.reviewStage.integerValue) >= 1);
+  check("a card rated Good is scheduled for later; the next review date is stored", !!rv.nextReviewAt?.timestampValue && Number(rv.reviewStage.integerValue) === 1);
+  const easyCard = (await getDoc(`users/${uid}/learningCards/${ev1.find((e) => e.rating === "easy").cardId}`)).json.fields.review.mapValue.fields;
+  check("a card rated Easy climbs two steps", Number(easyCard.reviewStage.integerValue) === 2, JSON.stringify(easyCard));
 
   // ---------------------------------------------------------------- quiz
   await page.getByRole("link", { name: "Back to Practice" }).click();
-  await page.getByRole("link", { name: /Quiz/ }).click();
-  await page.waitForSelector("text=What does this mean?", { timeout: 10000 });
-  check("the quiz offers several meanings to choose from", (await page.locator('[role="group"][aria-label="Choices"] button').count()) >= 2);
-  await page.keyboard.press("1");
-  check("answering shows right or wrong in words, and a Continue button", await until(async () => /Correct|Not quite/.test(await text("main")) && (await page.getByRole("button", { name: /Continue|See results/ }).count()) > 0, 5000));
-  await shot("08-quiz-answered");
-  const quizEvent = await until(async () => (await events()).find((e) => e.mode === "quiz"), 8000);
-  check("a quiz answer is recorded as a review event", !!quizEvent);
+  await page.getByRole("link", { name: /^Quiz/ }).click();
+  await page.waitForSelector('[role="group"][aria-label="Choices"]', { timeout: 10000 });
+  check("the quiz offers several choices", (await page.locator('[role="group"][aria-label="Choices"] button').count()) >= 3);
+  const seenPrompts = new Set();
+  for (let n = 0; n < 5; n++) {
+    await page.waitForSelector('[role="group"][aria-label="Choices"]', { timeout: 5000 });
+    const t = await text("main");
+    for (const p of ["What does this mean?", "Which expression completes the sentence?", "What does the highlighted part mean here?"]) if (t.includes(p)) seenPrompts.add(p);
+    if (n === 0) await shot("08-quiz-question");
+    await page.keyboard.press("1");
+    check(`quiz answer ${n + 1} shows right or wrong in words, with an explanation`, await until(async () => /Correct|Not quite/.test(await text("main")) && /means|:/.test(await text("main")) && (await page.getByRole("button", { name: /Continue|See results/ }).count()) > 0, 5000));
+    if (n === 0) await shot("08-quiz-answered");
+    await page.getByRole("button", { name: /Continue|See results/ }).click();
+  }
+  check("the quiz mixed all three question formats", seenPrompts.size === 3, [...seenPrompts].join(" | "));
+  check("the quiz ends with a score", await until(async () => /\/ 5/.test(await text("main")) && (await page.getByRole("button", { name: "Try again" }).count()) > 0, 5000));
+  check("five quiz answers were recorded", !!(await until(async () => (await events()).filter((e) => e.mode === "quiz").length === 5, 8000)));
 
-  // ---------------------------------------------------------------- fill in the blank
-  await page.goto(`${SITE}/practice/fill`);
-  await page.waitForSelector("text=Complete the sentence", { timeout: 15000 });
-  await page.getByLabel("Missing words").fill("totally wrong answer");
-  await page.getByRole("button", { name: "Check" }).click();
-  check("a wrong answer reveals the right one", await until(async () => /Not quite\. The answer is/.test(await text("main")), 5000), await text("main"));
-  await shot("09-fill-wrong");
-  await page.getByRole("button", { name: /Continue|Finish/ }).click();
-  const target = await until(async () => { const t = await text("main"); const m = t.match(/Hint: (.+)/); return m ? t : false; }, 5000);
-  const answerFor = (t) => { const hit = [...seeded, ["getting ahead of ourselves"]].find((c) => t.includes(c[1]?.split(c[0])[0] ?? "\u0000") && c[1] && t.includes((c[1].split(c[0])[1] ?? "").trim())); return hit ? hit[0] : "getting ahead of ourselves"; };
-  await page.getByLabel("Missing words").fill(answerFor(target || ""));
-  await page.getByRole("button", { name: "Check" }).click();
-  check("a right answer is accepted, ignoring capital letters", await until(async () => /^Correct/m.test(await text("main")), 5000), await text("main"));
-  check("fill-in answers are recorded as review events", !!(await until(async () => (await events()).filter((e) => e.mode === "fill").length === 2, 8000)));
+  // ---------------------------------------------------------------- reverse flashcards
+  await page.goto(`${SITE}/practice`);
+  await page.getByRole("link", { name: /Reverse flashcards/ }).click();
+  await page.waitForSelector("text=Which word or expression means this?", { timeout: 15000 });
+  check("reverse flashcards show the meaning first, with no term on the front", /1 \/ 5/.test(await text("main")) && (await page.getByRole("button", { name: "Reveal answer" }).count()) === 1);
+  await page.getByRole("button", { name: "Reveal answer" }).click();
+  check("reverse flashcards offer two ratings", await until(async () => (await page.getByRole("button", { name: "Missed it" }).count()) === 1 && (await page.getByRole("button", { name: "Got it" }).count()) === 1 && (await page.getByRole("button", { name: /^Easy/ }).count()) === 0, 3000));
+  await shot("09-reverse-back");
+  await page.keyboard.press("2");
+  await page.getByRole("button", { name: "Reveal answer" }).click();
+  await page.getByRole("button", { name: "Missed it" }).click();
+  check("reverse answers are recorded as review events", !!(await until(async () => (await events()).filter((e) => e.mode === "reverse").length === 2, 8000)));
 
   // ---------------------------------------------------------------- progress
   await page.goto(`${SITE}/progress`);
-  check("Progress shows the totals computed from the review events", await until(async () => { const t = await text("main"); const total = (await events()).length; return new RegExp(`${total}\\s*Reviews`).test(t) && /Accuracy/.test(t) && /Day streak/.test(t) && /Recent activity/.test(t); }, 12000), await text("main"));
+  check("Progress shows the totals computed from the review events", await until(async () => { const t = await text("main"); const total = (await events()).length; return new RegExp(`${total}\\s*Reviews`).test(t) && /Accuracy/.test(t) && /Day streak/.test(t) && /Recent activity/.test(t) && /Needs work/.test(t); }, 12000), await text("main"));
   await shot("10-progress");
 
   // ---------------------------------------------------------------- mistakes
   await page.goto(`${SITE}/practice`);
-  check("Review mistakes lists what was answered wrong most recently", await until(async () => /to revisit/.test(await text("main")), 8000), await text("main"));
+  check("Review mistakes lists what was answered wrong most recently", await until(async () => /to revisit, most missed first/.test(await text("main")), 8000), await text("main"));
 
   // ---------------------------------------------------------------- phone layout
   await page.setViewportSize({ width: 390, height: 780 });

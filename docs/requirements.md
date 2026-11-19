@@ -36,7 +36,7 @@
 
 SceneLingo helps non-native English speakers learn vocabulary from the movies, shows, and videos they already watch. While watching, a learner clicks a subtitle that contains something interesting. The extension captures that line and the learner keeps watching without interruption. Later, in the SceneLingo dashboard, the learner works through a Capture Inbox at their own pace: they pick a word, a multi-word expression, or a whole sentence from each capture, and SceneLingo explains it in its original context. It identifies whether it is vocabulary, an idiom, slang, or an expression, provides English synonyms and examples, and lets the learner save it to a personal collection.
 
-In the learner's own language, chosen in their profile, SceneLingo also provides a translation and explanation. It runs on the learner's device when the on-device model supports that language, and in the cloud otherwise. The saved collection supports practice with flashcards, meaning-recall exercises, contextual sentence completion, quizzes, and review of previously incorrect answers, with simple spaced review built in.
+In the learner's own language, chosen in their profile, SceneLingo also provides a translation and explanation. It runs on the learner's device when the on-device model supports that language, and in the cloud otherwise. The saved collection supports practice with flashcards, reverse flashcards, a quiz with three question formats, and review of previously incorrect answers, with simple spaced review built in.
 
 **Core promise:** Capture while you watch. Learn when you are ready.
 
@@ -147,7 +147,7 @@ A non-native English speaker who watches English-language movies, shows, or onli
 - English meaning, contextual meaning, English synonyms, and example sentences.
 - On-demand translation and contextual explanation in the learner's chosen language, routed per language to on-device or cloud inference, with a visible source label.
 - Firebase Authentication and Cloud Firestore-backed personal library.
-- Flashcards, reveal/guess practice, contextual sentence completion, mistake review, and simple spaced review.
+- Flashcards, reverse flashcards, a three-format quiz, mistake review, and simple spaced review.
 - Firebase App Check and a visible on-device/cloud inference indicator.
 
 ### 4.2 Explicitly out of scope for the hackathon MVP
@@ -816,8 +816,8 @@ When a learner selects a word, phrase, or sentence in Explore and presses **Expl
 - `meaningEn`: concise plain-English definition.
 - `contextualMeaningEn`: what the selected text means in this subtitle context.
 - `partOfSpeech`: nullable; primarily useful for single-word vocabulary.
-- `synonyms`: zero to three relevant English synonyms or alternatives.
-- `exampleSentences`: one or two natural English examples, not copied from the source subtitle.
+- `synonyms`: four to six relevant English synonyms or alternatives (fewer only when there are no more that fit).
+- `exampleSentences`: three or four natural English examples in different situations, not copied from the source subtitle.
 - `usageNote`: optional short note explaining register, formality, or typical use.
 - `confidenceNote`: optional caution when the context is insufficient or the phrase is ambiguous.
 
@@ -1036,38 +1036,35 @@ The Home screen shall show:
 **Priority:** Must have  
 The learner shall be able to practise saved items using flashcards.
 
-**Default card flow:**
-- Front: selected word/phrase/sentence and optionally source title/context cue.
-- User thinks of the meaning.
-- User taps **Reveal answer**.
-- Back: English meaning, contextual meaning, synonyms, example, and the translation in the learner's language if saved.
-- User marks **Still learning** or **Got it** (a missed card comes round once more in the same session).
+**Card flow:**
+- Front: the question "What does this mean?" and the selected word, phrase, or sentence.
+- The learner thinks of the meaning and presses **Reveal answer** (or Space, or clicks the card).
+- Back: the type, English meaning, contextual meaning, the translation in the learner's language if saved, all synonyms, all examples, and the original subtitle with the saved text emphasised, the video title, and a link to the moment in the video.
+- The learner rates the card **Again**, **Difficult**, **Good**, or **Easy** (keys 1 to 4). Each button shows when the card will come back (FR-PRA-007). The ratings appear only after the reveal.
+- A card rated **Again** comes round once more in the same session.
 
-### FR-PRA-002 — Guess the meaning before reveal
+### FR-PRA-002 — Reverse flashcards
+
+**Priority:** Could have  
+A **Reverse flashcards** mode shows the meaning first ("Which word or expression means this?") and the learner recalls the term. The back shows the term and the same details as FR-PRA-001. There are two ratings: **Missed it** and **Got it** (keys 1 and 2, or the arrow keys). Cards that are whole sentences are left out. Reverse results are recorded as review events and update the card's statistics, but only a miss changes its schedule (FR-PRA-007).
+
+### FR-PRA-003 — Quiz
 
 **Priority:** Must have  
-The dashboard shall allow the learner to attempt a meaning before the answer is shown. A user may optionally type a guess; for the MVP, self-rating is sufficient and automatic semantic grading is not required.
-
-### FR-PRA-003 — Contextual sentence completion
-
-**Priority:** Must have  
-The application shall create a cloze exercise from a saved source sentence by replacing the saved selected expression with a blank when the expression appears in the sentence.
+One **Quiz** mode builds up to ten multiple-choice questions from the learner's saved cards. It needs at least four saved cards, and says how many more are needed when there are fewer. Each question uses one of three formats, in turn:
+- **Guess the meaning:** the term (with its subtitle) is shown and the learner picks its meaning.
+- **Complete the sentence:** the saved subtitle is shown with the term blanked out and the learner picks the expression that fits.
+- **Contextual:** the subtitle is shown with the term highlighted and the learner picks what it means in that scene.
 
 **Acceptance criteria:**
-- The learner sees the original sentence with the selected term blanked out.
-- The learner enters or selects the missing expression.
-- The response is compared with the saved selected text using normalized case/whitespace and sensible punctuation handling.
-- If the selected text cannot be reliably located in the source sentence, the item is excluded from cloze practice rather than generating a misleading question. Storing the character offsets of the selection at save time is recommended.
+- A card whose subtitle does not contain the saved text, or that is a whole sentence, gets the "guess the meaning" format instead of a misleading blank.
+- Wrong options are taken from the learner's other cards; they are never presented as definitions. No AI call is made during a quiz.
+- After each answer the learner sees whether it was right, the term's meaning, and its meaning in the scene.
 
-### FR-PRA-004 — Contextual quizzes
+### FR-PRA-004 — Practice hub
 
-**Priority:** Should have  
-The dashboard shall offer short quizzes built deterministically from saved items:
-- Select the correct meaning for a word/phrase.
-- Match an expression to its saved meaning.
-- Choose the appropriate expression to complete a contextual sentence.
-
-Distractors must be clearly incorrect and must not be presented as authoritative definitions. No AI call is required per quiz attempt.
+**Priority:** Must have  
+Practice offers Flashcards, Reverse flashcards, Quiz, and Review mistakes, plus a single "Due now" action. Options that cannot run yet say why (for example "Save 2 more to unlock").
 
 ### FR-PRA-005 — Track outcomes and review events
 
@@ -1076,8 +1073,9 @@ Every practice attempt shall create a review event in `users/{uid}/reviewEvents/
 
 **Each review event contains:**
 - `cardId`
-- practice `mode` (`flashcard`, `guess`, `cloze`, `quiz`, `mistakes`)
-- `result` (`correct` or `incorrect`; flashcard ratings Again/Hard/Remembered map to this and are optionally kept in `rating`)
+- practice `mode` (`flashcard`, `reverse`, `quiz`, `mistakes`)
+- `result` (`correct` or `incorrect`; **Again** is incorrect, every other rating is correct)
+- `rating` (`again`, `hard`, `good`, or `easy`; quiz answers are recorded as `good` or `again`)
 - `reviewedAt` (the time of the answer, recorded on the client so offline practice keeps its real time)
 
 **Acceptance criteria:**
@@ -1090,17 +1088,18 @@ Every practice attempt shall create a review event in `users/{uid}/reviewEvents/
 ### FR-PRA-006 — Review mistakes
 
 **Priority:** Must have  
-A **Review mistakes** mode, inside Practice, prioritizes items answered incorrectly or marked **Again**, and records new outcomes the same way as other practice.
+A **Review mistakes** mode, inside Practice, lists the cards whose last answer was wrong or **Again**, the ones missed most often first, as flashcards. It records new outcomes the same way as other practice. Progress also shows a **Needs work** list of the cards missed most often, with "Missed N of M".
 
 ### FR-PRA-007 — Simple spaced review
 
 **Priority:** Must have  
-The application shall schedule the next review using a simple, deterministic rule. Suggested MVP intervals:
-- **Again / incorrect:** due again later in the same session or the next day.
-- **Hard:** due in approximately one day.
-- **Remembered:** increasing interval (for example 3, then 7, then 14 days).
+Each card sits on a ladder of gaps: 3, 7, 14, 30, and 60 days. A flashcard rating moves it:
+- **Again:** back to the start, due in 10 minutes.
+- **Difficult:** keeps its place, due in 1 day.
+- **Good:** one step up the ladder.
+- **Easy:** two steps up (never past the top).
 
-These are product defaults and may be tuned. They do not need to reproduce full SM-2.
+For a new card this gives 10 minutes, 1 day, 3 days, and 7 days. Quiz and reverse answers do not move a card up: a miss sends it back to the start, and a correct answer leaves its date alone. The rule is deterministic and does not reproduce full SM-2.
 
 ### FR-PRA-008 — Practice on small screens
 
@@ -1137,10 +1136,10 @@ This section is an implementation decision, not merely a conceptual distinction.
 | Core English learning card | Gemini Nano on desktop Chrome where available; cloud fallback | `PREFER_ON_DEVICE` | One request, single-turn, structured JSON |
 | Category classification | Same core card request | `PREFER_ON_DEVICE` | Enum category in schema |
 | English definition / contextual meaning | Same core card request | `PREFER_ON_DEVICE` | Simple English, concise |
-| English synonyms and examples | Same core card request | `PREFER_ON_DEVICE` | 0–3 synonyms; 1–2 examples |
+| English synonyms and examples | Same core card request | `PREFER_ON_DEVICE` | 4–6 synonyms; 3–4 examples |
 | Translation into the learner's language | Gemini Nano on desktop Chrome when the language is supported on-device; cloud otherwise | `PREFER_ON_DEVICE` for supported languages, `ONLY_IN_CLOUD` for the rest | Support is probed at runtime (FR-AI-011); the SDK-reported source is displayed |
 | Idiom/slang explanation in the learner's language | Same routing as translation | Same | Natural contextual wording, not literal-only |
-| Flashcards, reveal, cloze, quiz assembly | Dashboard logic | No AI | Uses stored card fields |
+| Flashcards, reveal, quiz assembly | Dashboard logic | No AI | Uses stored card fields |
 | Review scheduling and progress | Dashboard logic | No AI | Deterministic intervals |
 | Inbox, collection, practice storage | Cloud Firestore | No AI | Authenticated user data |
 | AI requests from a phone browser | Firebase cloud model | Cloud inference | Mobile Chrome does not support the desktop Prompt API local model |
@@ -1363,7 +1362,7 @@ Notes:
 }
 ```
 
-- `mode` is `flashcard`, `guess`, `cloze`, `quiz`, or `mistakes`. `result` is `correct` or `incorrect`.
+- `mode` is `flashcard`, `reverse`, `quiz`, or `mistakes`. `result` is `correct` or `incorrect`. `rating` is `again`, `hard`, `good`, or `easy`.
 - `rating`, `responseTimeMs`, and `createdAt` are optional.
 - Written in the same atomic operation as the card's `review` update (FR-PRA-005). Events are create-only.
 
@@ -1414,7 +1413,7 @@ The extension shows nothing during normal viewing.
 
 1. Learner opens Practice on desktop or phone.
 2. The dashboard shows collection size and items due for review.
-3. Learner starts flashcards, sentence completion, or a quiz.
+3. Learner starts flashcards, reverse flashcards, or a quiz.
 4. The card front shows the saved expression or source sentence. The learner attempts to recall the meaning and taps **Reveal answer**.
 5. The answer side shows English meaning, synonyms, example, and the saved explanation in the learner's language.
 6. Learner marks Again, Hard, or Remembered. In one atomic write, the application records a review event and updates the card's statistics and next review time.
@@ -1461,7 +1460,7 @@ There is no popup, side panel, options page, account page, queue view, sync cont
 | **Explore** | Work on one capture: segment, select a word/phrase/sentence, explain, translate to your language, save | **Explore** action on an Inbox row |
 | **My Collection** | Saved vocabulary, idioms, slang, and expressions, grouped and filtered by type | Primary navigation |
 | **Learning Cards** | Searchable card list and card detail, including English, saved translations, source context | From My Collection (and after saving in Explore) |
-| **Practice** | Flashcards, guess the meaning, sentence completion, contextual quizzes, mistake review, spaced review | Primary navigation |
+| **Practice** | Flashcards, reverse flashcards, quiz, mistake review, spaced review | Primary navigation |
 | **Progress** | Learning statistics and revision history | Primary navigation |
 | **Profile** | Account and sign-out, translation language, extension connection status, and "Lines that couldn't be saved" (only when needed); when the extension is not connected, how to download and add it | Primary navigation |
 
@@ -1484,7 +1483,7 @@ On phones the primary navigation is a bottom bar. Explore and Learning Cards are
 
 1. **My Collection:** category groups with counts, search and filters, and a card list.
 2. **Learning Cards:** card detail with all saved English and translated fields plus source context, with delete.
-3. **Practice:** mode picker (Flashcards, Guess, Sentence completion, Quiz, Review mistakes), the review screens, and the session summary.
+3. **Practice:** mode picker (Flashcards, Reverse flashcards, Quiz, Review mistakes), the review screens, and the session summary.
 4. **Progress:** statistics and revision history (FR-PRO-001, FR-PRO-002).
 5. **Home:** FR-HOME-001.
 6. **Profile:** account details and sign-out, preferences (FR-LIB-010), the extension's connection status and the unsaved-lines section (FR-CAP-011).
@@ -1720,7 +1719,7 @@ Submission closes on 30 November 2026 (per the Devpost listing), so prove the ri
 8. Firebase AI Logic `PREFER_ON_DEVICE` English learning card with structured output, cloud fallback, and the actual inference-source badge.
 9. Translation in the learner's chosen language through Firebase AI Logic, routed per language (on-device where supported, cloud otherwise), with a language picker and a source badge.
 10. Save with duplicate prevention (normalized text + source sentence), and My Collection / Learning Cards browse, search, filter, and detail.
-11. Flashcards with reveal and self-rating, atomic review events plus card statistics, and next-review scheduling.
+11. Flashcards with reveal and four ratings, atomic review events plus card statistics, and next-review scheduling.
 12. Contextual sentence completion and Review mistakes.
 13. Home and Profile; a layout that works on a phone.
 14. App Check for AI Logic, Firestore rules, public repository, license, and README.
@@ -1790,7 +1789,7 @@ The MVP is considered complete when all of these checks pass:
 - [ ] User can explicitly save a card, and the capture is marked processed.
 - [ ] Saving the same expression with the same source sentence under a different category does not create a second card; a different source sentence creates a separate card.
 - [ ] Home, Inbox, Explore, My Collection, Learning Cards, Practice, Progress, and Profile are available, and the learner can use them on a phone browser with the same account.
-- [ ] Practice offers flashcard reveal and self-rating, and works on a phone-sized screen.
+- [ ] Practice offers flashcard reveal and four ratings, and works on a phone-sized screen.
 - [ ] Practice offers contextual sentence completion for eligible cards.
 - [ ] Every practice attempt writes a `reviewEvents` document and updates the card statistics in one atomic operation.
 - [ ] Incorrect answers are tracked and can be practised again; Progress is based on review events.
@@ -1812,7 +1811,7 @@ The MVP is considered complete when all of these checks pass:
 4. **Hybrid English learning (0:55–1:30):** Explore a capture, select an expression such as "get ahead of ourselves", and generate the card. Show category, contextual meaning, synonyms, example, and the actual On-device/Cloud badge. Show a real on-device response where the environment supports it.
 5. **Your language (1:30–1:50):** Tap Translate. Show a language the device supports (for example Spanish) answered on-device, then switch to Urdu and show the cloud result. The badge shows which ran.
 6. **Save and sync (1:50–2:10):** Save the item, open My Collection, and show the same account on a phone browser.
-7. **Practice (2:10–2:40):** Demonstrate flashcard reveal, sentence completion, and review of an incorrect answer.
+7. **Practice (2:10–2:40):** Demonstrate flashcard reveal, a quiz question, and review of an incorrect answer.
 8. **Hybrid value (2:40–2:55):** Summarize that short English explanations use on-device inference when supported, cloud fallback keeps the feature available, and translation uses on-device inference for languages the local model supports and cloud inference for the rest, chosen automatically per language.
 
 ---

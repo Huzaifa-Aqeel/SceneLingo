@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { blankOut, cardIdFor, isCorrectAnswer, normalizeText, selectedFrom, splitSentences, tokenize, wordsOf } from "@/lib/text";
-import { INTERVAL_DAYS, isDue, nextReview } from "@/lib/schedule";
-import { buildOptions, shuffle } from "@/lib/quiz";
-import { buildSession, dueCount, mistakes } from "@/lib/session";
+import { blankOut, cardIdFor, normalizeText, selectedFrom, splitSentences, tokenize, wordsOf } from "@/lib/text";
+import { describeGap, gapFor, INTERVAL_DAYS, isDue, nextReview } from "@/lib/schedule";
+import { buildOptions, buildQuestion, planQuiz, shuffle } from "@/lib/quiz";
+import { buildSession, dueCount, mistakes, needsWork } from "@/lib/session";
 import { summarize } from "@/lib/stats";
 import { buildExplainConfig, buildExplainPrompt, validateEnglishCard } from "@/ai/englishCard";
 import { parseCard } from "@/lib/schemas";
@@ -53,33 +53,48 @@ describe("card identity", () => {
   });
 });
 
-describe("fill in the blank", () => {
-  it("blanks the saved text and checks answers loosely", () => {
+describe("blanking the saved text", () => {
+  it("splits the sentence around it", () => {
     const b = blankOut("I think we're getting ahead of ourselves.", "getting ahead of ourselves");
     expect(b).toEqual({ before: "I think we're ", match: "getting ahead of ourselves", after: "." });
     expect(blankOut("Nothing here.", "missing")).toBeNull();
-    expect(isCorrectAnswer("  Getting ahead of OURSELVES ", "getting ahead of ourselves")).toBe(true);
-    expect(isCorrectAnswer("", "x")).toBe(false);
-    expect(isCorrectAnswer("wrong", "right")).toBe(false);
   });
 });
 
 describe("review schedule", () => {
   const now = new Date("2026-01-01T12:00:00Z");
-  it("moves up on correct answers through the intervals, and caps", () => {
+  const days = (n: { dueAt: Date }) => Math.round((n.dueAt.getTime() - now.getTime()) / 86_400_000);
+  it("gives a new card 10 minutes, 1 day, 3 days or 7 days for Again, Difficult, Good and Easy", () => {
+    expect(nextReview(0, "again", now).dueAt.getTime() - now.getTime()).toBe(10 * 60_000);
+    expect(days(nextReview(0, "hard", now))).toBe(1);
+    expect(days(nextReview(0, "good", now))).toBe(3);
+    expect(days(nextReview(0, "easy", now))).toBe(7);
+  });
+  it("climbs the ladder one step on Good and caps at the top", () => {
     let stage = 0;
-    const days: number[] = [];
+    const gaps: number[] = [];
     for (let i = 0; i < 7; i++) {
-      const n = nextReview(stage, true, now);
-      days.push(Math.round((n.dueAt.getTime() - now.getTime()) / 86_400_000));
+      const n = nextReview(stage, "good", now);
+      gaps.push(days(n));
       stage = n.stage;
     }
-    expect(days).toEqual([...INTERVAL_DAYS, 30, 30]);
+    expect(gaps).toEqual([...INTERVAL_DAYS, 60, 60]);
   });
-  it("sends a wrong answer back to the start and brings it back within minutes", () => {
-    const n = nextReview(4, false, now);
-    expect(n.stage).toBe(0);
-    expect(n.dueAt.getTime() - now.getTime()).toBe(10 * 60_000);
+  it("climbs two steps on Easy", () => {
+    expect(nextReview(1, "easy", now)).toMatchObject({ stage: 3 });
+    expect(nextReview(4, "easy", now)).toMatchObject({ stage: 5 });
+  });
+  it("keeps the place on Difficult and resets on Again", () => {
+    expect(nextReview(3, "hard", now)).toMatchObject({ stage: 3 });
+    expect(days(nextReview(3, "hard", now))).toBe(1);
+    expect(nextReview(4, "again", now).stage).toBe(0);
+  });
+  it("describes the gaps in plain words", () => {
+    expect(describeGap(10)).toBe("10 min");
+    expect(gapFor(0, "hard", now)).toBe("1 day");
+    expect(gapFor(0, "good", now)).toBe("3 days");
+    expect(gapFor(3, "good", now)).toBe("1 month");
+    expect(gapFor(4, "good", now)).toBe("2 months");
   });
   it("treats a never-reviewed card as due", () => {
     expect(isDue(null, now)).toBe(true);
@@ -105,6 +120,38 @@ describe("quiz options", () => {
   });
 });
 
+describe("quiz questions", () => {
+  const mk = (id: string, text: string, sentence: string, meaning: string, ctx: string, kind = "phrase") =>
+    ({ id, selectedText: text, selectionKind: kind, sourceSentence: sentence, meaningEn: meaning, contextualMeaningEn: ctx });
+  const cards = [
+    mk("a", "jump the gun", "You always jump the gun.", "to act too early", "he is rushing"),
+    mk("b", "under the weather", "I'm under the weather today.", "slightly ill", "she feels sick"),
+    mk("c", "break a leg", "Break a leg tonight!", "good luck", "he wishes her luck"),
+    mk("d", "piece of cake", "That was a piece of cake.", "very easy", "the test was easy"),
+    mk("s", "Nothing lasts forever, does it?", "Nothing lasts forever, does it?", "things end", "she is sad", "sentence"),
+  ];
+  it("builds a complete-the-sentence question whose options are other expressions", () => {
+    const q = buildQuestion(cards[0]!, cards, "complete", seeded())!;
+    expect(q.sentence).toEqual({ before: "You always ", match: "jump the gun", after: "." });
+    expect(q.options.find((o) => o.correct)!.text).toBe("jump the gun");
+    expect(q.options.some((o) => o.text.startsWith("Nothing lasts"))).toBe(false);
+  });
+  it("builds a contextual question with in-scene meanings as options", () => {
+    const q = buildQuestion(cards[1]!, cards, "context", seeded())!;
+    expect(q.options.find((o) => o.correct)!.text).toBe("she feels sick");
+  });
+  it("can't make a complete question for a whole sentence or when the text isn't in the subtitle", () => {
+    expect(buildQuestion(cards[4]!, cards, "complete", seeded())).toBeNull();
+    expect(buildQuestion({ ...cards[0]!, sourceSentence: "Something else." }, cards, "context", seeded())).toBeNull();
+  });
+  it("plans a mix of formats and falls back to the meaning question", () => {
+    const qs = planQuiz(cards, cards, seeded(2));
+    expect(qs).toHaveLength(5);
+    expect(new Set(qs.map((q) => q.format)).size).toBe(3);
+    expect(qs.every((q) => q.options.filter((o) => o.correct).length === 1)).toBe(true);
+  });
+});
+
 describe("practice sessions", () => {
   const now = new Date("2026-01-10T00:00:00Z");
   const card = (id: string, stage: number, due: string | null, last: "correct" | "incorrect" | null = null) =>
@@ -125,6 +172,12 @@ describe("practice sessions", () => {
   it("mistakes are the cards last answered wrong", () => {
     expect(mistakes(cards).map((c) => c.id)).toEqual(["overdue-new"]);
     expect(buildSession(cards, "mistakes", now).map((c) => c.id)).toEqual(["overdue-new"]);
+  });
+  it("puts the most-missed mistakes first and ranks cards that need work", () => {
+    const miss = (id: string, wrong: number, tries: number, last: "correct" | "incorrect") => ({ id, review: { reviewStage: 0, lastResult: last, incorrectCount: wrong, attemptCount: tries } });
+    const set = [miss("once", 1, 2, "incorrect"), miss("often", 4, 5, "incorrect"), miss("fixed", 3, 9, "correct"), miss("clean", 0, 3, "correct")];
+    expect(mistakes(set).map((c) => c.id)).toEqual(["often", "once"]);
+    expect(needsWork(set).map((c) => c.id)).toEqual(["often", "fixed", "once"]);
   });
   it("respects the session size", () => {
     expect(buildSession(cards, "all", now, 2)).toHaveLength(2);
@@ -150,11 +203,11 @@ describe("progress statistics", () => {
 });
 
 describe("English card", () => {
-  const good = { category: "idiom", meaningEn: "To act too early.", contextualMeaningEn: "The speaker thinks they're rushing.", synonyms: ["rush", "jump the gun", "assume too much", "a fourth"], exampleSentences: ["Let's wait for the results.", "Don't rush.", "A third"], usageNote: null };
-  it("accepts a good card, caps synonyms at 3 and examples at 2, fills missing optionals with null", () => {
+  const good = { category: "idiom", meaningEn: "To act too early.", contextualMeaningEn: "The speaker thinks they're rushing.", synonyms: ["rush", "jump the gun", "assume too much", "a fourth", "a fifth", "a sixth", "a seventh"], exampleSentences: ["Let's wait for the results.", "Don't rush.", "A third", "A fourth", "A fifth"], usageNote: null };
+  it("accepts a good card, caps synonyms at 6 and examples at 4, fills missing optionals with null", () => {
     const c = validateEnglishCard(JSON.stringify(good));
-    expect(c.synonyms).toHaveLength(3);
-    expect(c.exampleSentences).toHaveLength(2);
+    expect(c.synonyms).toHaveLength(6);
+    expect(c.exampleSentences).toHaveLength(4);
     expect(c).toMatchObject({ partOfSpeech: null, usageNote: null, confidenceNote: null });
   });
   it("rejects anything unusable so it is never saved", () => {

@@ -62,7 +62,6 @@ export default function SignIn() {
       <Card className="w-full max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">SceneLingo</CardTitle>
-          <p className="text-sm text-muted-foreground">Learn English from the shows you watch.</p>
           <CardDescription>{mode === "up" ? "Create your account." : "Welcome back."}</CardDescription>
         </CardHeader>
         <CardContent>

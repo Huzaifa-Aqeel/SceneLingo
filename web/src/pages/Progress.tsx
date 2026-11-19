@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCards, useReviewEvents } from "@/hooks/useCards";
+import { needsWork } from "@/lib/session";
 import { summarize } from "@/lib/stats";
 
 // "2026-11-06" -> "6 Nov" (in the learner's own date style)
@@ -15,7 +16,7 @@ const shortDay = (iso: string) => {
   return new Date(y!, (m ?? 1) - 1, d ?? 1).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 };
 
-const MODE: Record<string, string> = { flashcard: "Flashcards", quiz: "Quiz", fill: "Fill in the blank", mistakes: "Mistakes" };
+const MODE: Record<string, string> = { flashcard: "Flashcards", reverse: "Reverse flashcards", quiz: "Quiz", fill: "Fill in the blank", mistakes: "Mistakes" };
 
 export default function Progress({ user }: { user: User }) {
   const events = useReviewEvents(user.uid);
@@ -26,6 +27,7 @@ export default function Progress({ user }: { user: User }) {
     return (<><PageHeader title="Progress" /><Empty title="No practice yet" action={<Button asChild><Link to="/practice">Start practising</Link></Button>}>Your results will show up here.</Empty></>);
   }
   const names = new Map(cards.map((c) => [c.id, c.selectedText]));
+  const weak = needsWork(cards);
   const max = Math.max(1, ...stats.recent.map((d) => d.total));
   const tiles = [
     { label: "Reviews", value: stats.total },
@@ -55,6 +57,22 @@ export default function Progress({ user }: { user: User }) {
           <p className="mt-2 flex justify-between text-xs text-muted-foreground"><span>{shortDay(stats.recent[0]!.day)}</span><span>Today</span></p>
         </CardContent>
       </Card>
+      {weak.length > 0 && (
+        <Card className="mb-4 rounded-2xl">
+          <CardHeader><CardTitle className="text-base">Needs work</CardTitle></CardHeader>
+          <CardContent>
+            <ul className="divide-y">
+              {weak.map((c) => (
+                <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <Link to={`/collection/${c.id}`} className="truncate font-medium hover:underline">{c.selectedText}</Link>
+                  <span className="shrink-0 text-sm text-muted-foreground">Missed {c.review.incorrectCount} of {c.review.attemptCount}</span>
+                </li>
+              ))}
+            </ul>
+            <Button asChild variant="outline" className="mt-3"><Link to="/practice/flashcards?set=mistakes">Review mistakes</Link></Button>
+          </CardContent>
+        </Card>
+      )}
       <Card className="rounded-2xl">
         <CardHeader><CardTitle className="text-base">Recent activity</CardTitle></CardHeader>
         <CardContent>

@@ -76,8 +76,8 @@ export const englishCardOutputSchema = z.object({
   meaningEn: short(500),
   contextualMeaningEn: short(500),
   partOfSpeech: optional(40),
-  synonyms: list(80, 3),
-  exampleSentences: list(300, 2).refine((a) => a.length >= 1, "No example sentence was provided."),
+  synonyms: list(80, 6),
+  exampleSentences: list(300, 4).refine((a) => a.length >= 1, "No example sentence was provided."),
   usageNote: optional(300),
   confidenceNote: optional(300),
 });
@@ -151,12 +151,13 @@ export function parseCard(id: string, data: unknown): LearningCard | null {
 
 export const reviewEventSchema = z.object({
   cardId: z.string(),
-  mode: z.enum(["flashcard", "quiz", "fill", "mistakes"]),
+  mode: z.enum(["flashcard", "reverse", "quiz", "fill", "mistakes"]),
   result: z.enum(["correct", "incorrect"]),
+  rating: z.enum(["again", "hard", "good", "easy"]).nullish(),
   reviewedAt: timestamp,
 });
-export type ReviewEvent = { id: string; cardId: string; mode: string; result: "correct" | "incorrect"; reviewedAt: Date };
+export type ReviewEvent = { id: string; cardId: string; mode: string; result: "correct" | "incorrect"; rating: "again" | "hard" | "good" | "easy" | null; reviewedAt: Date };
 export function parseEvent(id: string, data: unknown): ReviewEvent | null {
   const r = reviewEventSchema.safeParse(data);
-  return r.success ? { id, cardId: r.data.cardId, mode: r.data.mode, result: r.data.result, reviewedAt: r.data.reviewedAt.toDate() } : null;
+  return r.success ? { id, cardId: r.data.cardId, mode: r.data.mode, result: r.data.result, rating: r.data.rating ?? null, reviewedAt: r.data.reviewedAt.toDate() } : null;
 }
