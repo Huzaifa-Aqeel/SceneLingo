@@ -64,10 +64,11 @@ describe("blanking the saved text", () => {
 describe("review schedule", () => {
   const now = new Date("2026-01-01T12:00:00Z");
   const days = (n: { dueAt: Date }) => Math.round((n.dueAt.getTime() - now.getTime()) / 86_400_000);
-  it("brings a missed card back in 10 minutes and sends it to the start", () => {
+  it("sends a missed card to the start, due straight away", () => {
     const n = nextReview(4, "again", now);
     expect(n.stage).toBe(0);
-    expect(n.dueAt.getTime() - now.getTime()).toBe(10 * 60_000);
+    expect(n.dueAt.getTime()).toBe(now.getTime());
+    expect(isDue(n.dueAt, now)).toBe(true);
   });
   it("climbs the ladder one step on Got it and caps at the top", () => {
     let stage = 0;
@@ -80,7 +81,7 @@ describe("review schedule", () => {
     expect(gaps).toEqual([...INTERVAL_DAYS, 60, 60]);
   });
   it("describes the gaps in plain words", () => {
-    expect(describeGap(10)).toBe("10 min");
+    expect(gapFor(2, "again", now)).toBe("Today");
     expect(gapFor(0, "good", now)).toBe("3 days");
     expect(gapFor(3, "good", now)).toBe("1 month");
     expect(gapFor(4, "good", now)).toBe("2 months");

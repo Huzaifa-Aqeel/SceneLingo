@@ -1094,10 +1094,10 @@ A **Review mistakes** mode, inside Practice, lists the cards whose last answer w
 
 **Priority:** Must have  
 Each card sits on a ladder of gaps: 3, 7, 14, 30, and 60 days.
-- **Still learning:** back to the start, due in 10 minutes.
+- **Still learning:** back to the start, due now. The card stays in the due list (and in Review mistakes) until the learner marks it Got it.
 - **Got it:** one step up the ladder (a new card comes back in 3 days; never past the top).
 
-Quiz and reverse answers do not move a card up: a miss sends it back to the start, and a correct answer leaves its date alone. The rule is deterministic and does not reproduce full SM-2.
+Quiz and reverse answers do not move a card up: a miss sends it back to the start (due now), and a correct answer leaves its date alone. The rule is deterministic and does not reproduce full SM-2.
 
 ### FR-PRA-008 — Practice on small screens
 
