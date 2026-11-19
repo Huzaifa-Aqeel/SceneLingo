@@ -1,28 +1,26 @@
-// Review schedule (FR-PRA-007). Cards climb a ladder of growing gaps. The learner's rating decides how far
-// a card moves: Again sends it back to the start, Difficult keeps its place, Good climbs one step, Easy two.
+// Review schedule (FR-PRA-007). Cards climb a ladder of growing gaps. "Got it" moves a card up one step;
+// "Still learning" sends it back to the start and brings it back within minutes.
 
 export const INTERVAL_DAYS = [3, 7, 14, 30, 60];
 export const RETRY_MINUTES = 10;
-export const HARD_DAYS = 1;
 
-export const RATINGS = ["again", "hard", "good", "easy"] as const;
-export type Rating = (typeof RATINGS)[number];
-export const RATING_LABEL: Record<Rating, string> = { again: "Again", hard: "Difficult", good: "Good", easy: "Easy" };
+// "again" = Still learning, "good" = Got it.
+export type Rating = "again" | "good";
+export const RATING_LABEL: Record<Rating, string> = { again: "Still learning", good: "Got it" };
 
 export interface Schedule { stage: number; dueAt: Date; minutes: number }
 
 const DAY = 86_400_000;
 
 export function nextReview(stage: number, rating: Rating, now: Date): Schedule {
-  const at = Math.min(Math.max(Math.floor(stage) || 0, 0), INTERVAL_DAYS.length);
   if (rating === "again") return { stage: 0, minutes: RETRY_MINUTES, dueAt: new Date(now.getTime() + RETRY_MINUTES * 60_000) };
-  if (rating === "hard") return { stage: at, minutes: HARD_DAYS * 1440, dueAt: new Date(now.getTime() + HARD_DAYS * DAY) };
-  const s = Math.min(at + (rating === "easy" ? 2 : 1), INTERVAL_DAYS.length);
+  const at = Math.min(Math.max(Math.floor(stage) || 0, 0), INTERVAL_DAYS.length);
+  const s = Math.min(at + 1, INTERVAL_DAYS.length);
   const days = INTERVAL_DAYS[s - 1]!;
   return { stage: s, minutes: days * 1440, dueAt: new Date(now.getTime() + days * DAY) };
 }
 
-// "10 min", "1 day", "3 days", "2 months": what each rating button promises.
+// "10 min", "3 days", "2 months": what each button promises.
 export function describeGap(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   const days = Math.round(minutes / 1440);

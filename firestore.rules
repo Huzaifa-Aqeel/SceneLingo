@@ -74,7 +74,7 @@ service cloud.firestore {
           && request.resource.data.cardId is string
           && request.resource.data.result in ['correct', 'incorrect']
           && (!('rating' in request.resource.data)
-              || request.resource.data.rating in ['again', 'hard', 'good', 'easy']);
+              || request.resource.data.rating in ['again', 'good']);
         allow update: if false;
         allow delete: if isOwner(uid);
       }

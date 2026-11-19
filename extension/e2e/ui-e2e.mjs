@@ -160,33 +160,31 @@ try {
   await shot("05-practice");
   await page.getByRole("link", { name: "Start" }).click();
   await page.waitForSelector('[role="button"][aria-label="Show the answer"]', { timeout: 10000 });
-  check("the flashcard asks a question, shows the term, and offers a Reveal button", /1 \/ 5/.test(await text("main")) && /What does this mean\?/.test(await text("main")) && (await page.getByRole("button", { name: "Reveal answer" }).count()) === 1 && (await page.getByRole("button", { name: "Easy" }).count()) === 0);
+  check("the flashcard asks a question, shows the term, and offers a Reveal button", /1 \/ 5/.test(await text("main")) && /What does this mean\?/.test(await text("main")) && (await page.getByRole("button", { name: "Reveal answer" }).count()) === 1 && (await page.getByRole("button", { name: "Got it" }).count()) === 0);
   await page.getByRole("button", { name: "Reveal answer" }).click();
-  check("revealing flips it to the answer and shows four ratings with their next gaps", await until(async () => (await page.locator('[role="button"][aria-label="Show the term"]').count()) > 0 && (await page.getByRole("button", { name: /^Again\s*10 min/ }).count()) === 1 && (await page.getByRole("button", { name: /^Difficult\s*1 day/ }).count()) === 1 && (await page.getByRole("button", { name: /^Good\s*3 days/ }).count()) === 1 && (await page.getByRole("button", { name: /^Easy\s*7 days/ }).count()) === 1, 3000), await text("main"));
+  check("revealing flips it to the answer and shows two buttons with their next gaps", await until(async () => (await page.locator('[role="button"][aria-label="Show the term"]').count()) > 0 && (await page.getByRole("button", { name: /^Still learning\s*10 min/ }).count()) === 1 && (await page.getByRole("button", { name: /^Got it\s*3 days/ }).count()) === 1 && (await page.getByRole("button", { name: /^(Again|Difficult|Easy)/ }).count()) === 0, 3000), await text("main"));
   check("the back shows the type, examples and the scene it came from", await until(async () => { const t = await text("main"); return /Examples/i.test(t) && /From the scene/i.test(t) && /(Idiom|Vocabulary|Slang|Expression)/i.test(t); }, 3000));
   await sleep(900); // let the flip animation finish before the screenshot
   await shot("06-flashcard-back");
-  await page.getByRole("button", { name: /^Good/ }).click();                 // card 1: Good
+  await page.getByRole("button", { name: /^Got it/ }).click();               // card 1: Got it
   await page.keyboard.press("Space");                                          // reveal with the keyboard
-  await page.keyboard.press("1");                                              // card 2: Again -> comes back once
-  await page.getByRole("button", { name: "Reveal answer" }).click(); await page.keyboard.press("4");   // card 3: Easy
-  await page.getByRole("button", { name: "Reveal answer" }).click(); await page.keyboard.press("2");   // card 4: Difficult
-  check("a card marked Again comes round once more at the end of the session", await until(async () => /5 \/ 6/.test(await text("main")), 5000), await text("main"));
-  await page.getByRole("button", { name: "Reveal answer" }).click(); await page.keyboard.press("3");   // card 5: Good
-  await page.getByRole("button", { name: "Reveal answer" }).click(); await page.keyboard.press("3");   // the repeated card: Good
+  await page.keyboard.press("1");                                              // card 2: Still learning -> comes back once
+  await page.getByRole("button", { name: "Reveal answer" }).click(); await page.keyboard.press("2");   // card 3: Got it
+  await page.getByRole("button", { name: "Reveal answer" }).click(); await page.keyboard.press("ArrowRight"); // card 4: Got it
+  check("a card marked Still learning comes round once more at the end of the session", await until(async () => /5 \/ 6/.test(await text("main")), 5000), await text("main"));
+  await page.getByRole("button", { name: "Reveal answer" }).click(); await page.keyboard.press("2");   // card 5: Got it
+  await page.getByRole("button", { name: "Reveal answer" }).click(); await page.keyboard.press("2");   // the repeated card: Got it
   check("the session ends with a summary", await until(async () => (await page.getByText("Nice work").count()) > 0, 8000));
   await shot("07-flashcard-done");
 
   const ev1 = await until(async () => { const e = await events(); return e.length === 6 ? e : false; }, 10000);
   check("every rating wrote a review event (6 answers)", !!ev1, JSON.stringify((await events()).length));
-  check("events carry the mode, the result and the rating", !!ev1 && ev1.every((e) => e.mode === "flashcard") && ev1.filter((e) => e.result === "incorrect").length === 1 && ["again", "hard", "good", "easy"].every((r) => ev1.some((e) => e.rating === r)), JSON.stringify(ev1?.map((e) => e.rating)));
+  check("events carry the mode, the result and the rating", !!ev1 && ev1.every((e) => e.mode === "flashcard") && ev1.filter((e) => e.result === "incorrect").length === 1 && ["again", "good"].every((r) => ev1.some((e) => e.rating === r)) && ev1.every((e) => e.rating === "again" || e.rating === "good"), JSON.stringify(ev1?.map((e) => e.rating)));
   const missedId = ev1 && ev1.find((e) => e.result === "incorrect").cardId;
   const missedCard = (await getDoc(`users/${uid}/learningCards/${missedId}`)).json.fields;
   const rv = missedCard.review.mapValue.fields;
   check("the card's own statistics changed with its events (attempts, wrong count, last result)", rv.attemptCount.integerValue === "2" && rv.incorrectCount.integerValue === "1" && rv.lastResult.stringValue === "correct", JSON.stringify(rv));
-  check("a card rated Good is scheduled for later; the next review date is stored", !!rv.nextReviewAt?.timestampValue && Number(rv.reviewStage.integerValue) === 1);
-  const easyCard = (await getDoc(`users/${uid}/learningCards/${ev1.find((e) => e.rating === "easy").cardId}`)).json.fields.review.mapValue.fields;
-  check("a card rated Easy climbs two steps", Number(easyCard.reviewStage.integerValue) === 2, JSON.stringify(easyCard));
+  check("a card marked Got it is scheduled for later; the next review date is stored", !!rv.nextReviewAt?.timestampValue && Number(rv.reviewStage.integerValue) === 1);
 
   // ---------------------------------------------------------------- quiz
   await page.getByRole("link", { name: "Back to Practice" }).click();
@@ -214,11 +212,11 @@ try {
   await page.waitForSelector("text=Which word or expression means this?", { timeout: 15000 });
   check("reverse flashcards show the meaning first, with no term on the front", /1 \/ 5/.test(await text("main")) && (await page.getByRole("button", { name: "Reveal answer" }).count()) === 1);
   await page.getByRole("button", { name: "Reveal answer" }).click();
-  check("reverse flashcards offer two ratings", await until(async () => (await page.getByRole("button", { name: "Missed it" }).count()) === 1 && (await page.getByRole("button", { name: "Got it" }).count()) === 1 && (await page.getByRole("button", { name: /^Easy/ }).count()) === 0, 3000));
+  check("reverse flashcards offer the same two buttons", await until(async () => (await page.getByRole("button", { name: "Still learning" }).count()) === 1 && (await page.getByRole("button", { name: "Got it" }).count()) === 1, 3000));
   await shot("09-reverse-back");
   await page.keyboard.press("2");
   await page.getByRole("button", { name: "Reveal answer" }).click();
-  await page.getByRole("button", { name: "Missed it" }).click();
+  await page.getByRole("button", { name: "Still learning" }).click();
   check("reverse answers are recorded as review events", !!(await until(async () => (await events()).filter((e) => e.mode === "reverse").length === 2, 8000)));
 
   // ---------------------------------------------------------------- progress

@@ -1040,13 +1040,13 @@ The learner shall be able to practise saved items using flashcards.
 - Front: the question "What does this mean?" and the selected word, phrase, or sentence.
 - The learner thinks of the meaning and presses **Reveal answer** (or Space, or clicks the card).
 - Back: the type, English meaning, contextual meaning, the translation in the learner's language if saved, all synonyms, all examples, and the original subtitle with the saved text emphasised, the video title, and a link to the moment in the video.
-- The learner rates the card **Again**, **Difficult**, **Good**, or **Easy** (keys 1 to 4). Each button shows when the card will come back (FR-PRA-007). The ratings appear only after the reveal.
-- A card rated **Again** comes round once more in the same session.
+- The learner marks the card **Still learning** or **Got it** (keys 1 and 2, or the arrow keys). Each button shows when the card will come back (FR-PRA-007). The buttons appear only after the reveal. Two buttons are used on purpose: a finer scale only changes the next date and would slow the learner down on every card.
+- A card marked **Still learning** comes round once more in the same session.
 
 ### FR-PRA-002 — Reverse flashcards
 
 **Priority:** Could have  
-A **Reverse flashcards** mode shows the meaning first ("Which word or expression means this?") and the learner recalls the term. The back shows the term and the same details as FR-PRA-001. There are two ratings: **Missed it** and **Got it** (keys 1 and 2, or the arrow keys). Cards that are whole sentences are left out. Reverse results are recorded as review events and update the card's statistics, but only a miss changes its schedule (FR-PRA-007).
+A **Reverse flashcards** mode shows the meaning first ("Which word or expression means this?") and the learner recalls the term. The back shows the term and the same details as FR-PRA-001. It uses the same two buttons as FR-PRA-001. Cards that are whole sentences are left out. Reverse results are recorded as review events and update the card's statistics, but only a miss changes its schedule (FR-PRA-007).
 
 ### FR-PRA-003 — Quiz
 
@@ -1074,8 +1074,8 @@ Every practice attempt shall create a review event in `users/{uid}/reviewEvents/
 **Each review event contains:**
 - `cardId`
 - practice `mode` (`flashcard`, `reverse`, `quiz`, `mistakes`)
-- `result` (`correct` or `incorrect`; **Again** is incorrect, every other rating is correct)
-- `rating` (`again`, `hard`, `good`, or `easy`; quiz answers are recorded as `good` or `again`)
+- `result` (`correct` or `incorrect`)
+- `rating` (`again` for Still learning or a wrong quiz answer, `good` for Got it or a right one)
 - `reviewedAt` (the time of the answer, recorded on the client so offline practice keeps its real time)
 
 **Acceptance criteria:**
@@ -1088,18 +1088,16 @@ Every practice attempt shall create a review event in `users/{uid}/reviewEvents/
 ### FR-PRA-006 — Review mistakes
 
 **Priority:** Must have  
-A **Review mistakes** mode, inside Practice, lists the cards whose last answer was wrong or **Again**, the ones missed most often first, as flashcards. It records new outcomes the same way as other practice. Progress also shows a **Needs work** list of the cards missed most often, with "Missed N of M".
+A **Review mistakes** mode, inside Practice, lists the cards whose last answer was wrong or **Still learning**, the ones missed most often first, as flashcards. It records new outcomes the same way as other practice. Progress also shows a **Needs work** list of the cards missed most often, with "Missed N of M".
 
 ### FR-PRA-007 — Simple spaced review
 
 **Priority:** Must have  
-Each card sits on a ladder of gaps: 3, 7, 14, 30, and 60 days. A flashcard rating moves it:
-- **Again:** back to the start, due in 10 minutes.
-- **Difficult:** keeps its place, due in 1 day.
-- **Good:** one step up the ladder.
-- **Easy:** two steps up (never past the top).
+Each card sits on a ladder of gaps: 3, 7, 14, 30, and 60 days.
+- **Still learning:** back to the start, due in 10 minutes.
+- **Got it:** one step up the ladder (a new card comes back in 3 days; never past the top).
 
-For a new card this gives 10 minutes, 1 day, 3 days, and 7 days. Quiz and reverse answers do not move a card up: a miss sends it back to the start, and a correct answer leaves its date alone. The rule is deterministic and does not reproduce full SM-2.
+Quiz and reverse answers do not move a card up: a miss sends it back to the start, and a correct answer leaves its date alone. The rule is deterministic and does not reproduce full SM-2.
 
 ### FR-PRA-008 — Practice on small screens
 
@@ -1362,7 +1360,7 @@ Notes:
 }
 ```
 
-- `mode` is `flashcard`, `reverse`, `quiz`, or `mistakes`. `result` is `correct` or `incorrect`. `rating` is `again`, `hard`, `good`, or `easy`.
+- `mode` is `flashcard`, `reverse`, `quiz`, or `mistakes`. `result` is `correct` or `incorrect`. `rating` is `again` or `good`.
 - `rating`, `responseTimeMs`, and `createdAt` are optional.
 - Written in the same atomic operation as the card's `review` update (FR-PRA-005). Events are create-only.
 
@@ -1416,12 +1414,12 @@ The extension shows nothing during normal viewing.
 3. Learner starts flashcards, reverse flashcards, or a quiz.
 4. The card front shows the saved expression or source sentence. The learner attempts to recall the meaning and taps **Reveal answer**.
 5. The answer side shows English meaning, synonyms, example, and the saved explanation in the learner's language.
-6. Learner marks Again, Hard, or Remembered. In one atomic write, the application records a review event and updates the card's statistics and next review time.
+6. Learner marks Still learning or Got it. In one atomic write, the application records a review event and updates the card's statistics and next review time.
 
 ### 15.6 Review a previously incorrect item
 
 1. Learner opens **Review mistakes** in Practice.
-2. The app lists items with a recent incorrect result or marked Again, or items overdue for review.
+2. The app lists items with a recent incorrect result or marked Still learning, or items overdue for review.
 3. Learner sees the selected term without its definition, guesses, and reveals the answer.
 4. The result is recorded as in 15.5 and the next review time is recalculated.
 
@@ -1719,7 +1717,7 @@ Submission closes on 30 November 2026 (per the Devpost listing), so prove the ri
 8. Firebase AI Logic `PREFER_ON_DEVICE` English learning card with structured output, cloud fallback, and the actual inference-source badge.
 9. Translation in the learner's chosen language through Firebase AI Logic, routed per language (on-device where supported, cloud otherwise), with a language picker and a source badge.
 10. Save with duplicate prevention (normalized text + source sentence), and My Collection / Learning Cards browse, search, filter, and detail.
-11. Flashcards with reveal and four ratings, atomic review events plus card statistics, and next-review scheduling.
+11. Flashcards with reveal and two ratings, atomic review events plus card statistics, and next-review scheduling.
 12. Contextual sentence completion and Review mistakes.
 13. Home and Profile; a layout that works on a phone.
 14. App Check for AI Logic, Firestore rules, public repository, license, and README.
@@ -1789,7 +1787,7 @@ The MVP is considered complete when all of these checks pass:
 - [ ] User can explicitly save a card, and the capture is marked processed.
 - [ ] Saving the same expression with the same source sentence under a different category does not create a second card; a different source sentence creates a separate card.
 - [ ] Home, Inbox, Explore, My Collection, Learning Cards, Practice, Progress, and Profile are available, and the learner can use them on a phone browser with the same account.
-- [ ] Practice offers flashcard reveal and four ratings, and works on a phone-sized screen.
+- [ ] Practice offers flashcard reveal and two ratings, and works on a phone-sized screen.
 - [ ] Practice offers contextual sentence completion for eligible cards.
 - [ ] Every practice attempt writes a `reviewEvents` document and updates the card statistics in one atomic operation.
 - [ ] Incorrect answers are tracked and can be practised again; Progress is based on review events.

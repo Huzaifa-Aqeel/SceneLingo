@@ -153,7 +153,7 @@ export const reviewEventSchema = z.object({
   cardId: z.string(),
   mode: z.enum(["flashcard", "reverse", "quiz", "fill", "mistakes"]),
   result: z.enum(["correct", "incorrect"]),
-  rating: z.enum(["again", "hard", "good", "easy"]).nullish(),
+  rating: z.enum(["again", "hard", "good", "easy"]).nullish(), // older reviews may carry hard or easy; new ones are again or good
   reviewedAt: timestamp,
 });
 export type ReviewEvent = { id: string; cardId: string; mode: string; result: "correct" | "incorrect"; rating: "again" | "hard" | "good" | "easy" | null; reviewedAt: Date };
