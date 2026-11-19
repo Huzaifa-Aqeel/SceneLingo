@@ -34,7 +34,11 @@ export default function Flashcards({ user }: { user: User }) {
   const [queue, setQueue] = useState<LearningCard[] | null>(null);
   useEffect(() => {
     // Reverse cards ask for the term, so a whole sentence can't be one.
-    if (cards && queue === null) setQueue(buildSession(reverse ? cards.filter((c) => c.selectionKind !== "sentence") : cards, kind, new Date()));
+    if (cards && queue === null) {
+      const list = buildSession(reverse ? cards.filter((c) => c.selectionKind !== "sentence") : cards, kind, new Date());
+      setQueue(list);
+      setFirstLooks(list.length);
+    }
   }, [cards, queue, kind, reverse]);
 
   const [index, setIndex] = useState(0);
@@ -42,15 +46,17 @@ export default function Flashcards({ user }: { user: User }) {
   const [tally, setTally] = useState({ again: 0, good: 0 });
   const [missed, setMissed] = useState<LearningCard[]>([]);
   const [requeued, setRequeued] = useState<Set<string>>(new Set());
+  const [firstLooks, setFirstLooks] = useState<number | null>(null); // cards before the repeats the session adds
 
   const current = queue?.[index];
   const total = queue?.length ?? 0;
   const done = queue !== null && index >= total;
+  const isRepeat = firstLooks !== null && index >= firstLooks; // the second look at a missed card
   const mode = reverse ? "reverse" : kind === "mistakes" ? "mistakes" : "flashcard";
 
   function rate(rating: Rating) {
     if (!current || !queue || !flipped) return;
-    void recordReview(user.uid, current, rating, mode).catch(() => {});
+    void recordReview(user.uid, current, rating, mode, { schedule: !isRepeat }).catch(() => {});
     setTally((t) => ({ ...t, [rating]: t[rating] + 1 }));
     if (rating === "again") {
       setMissed((m) => [...m.filter((x) => x.id !== current.id), current]);
@@ -99,7 +105,7 @@ export default function Flashcards({ user }: { user: User }) {
           <div className="rounded-2xl bg-card p-5 shadow-sm"><p className="text-3xl font-bold text-warning">{missed.length}</p><p className="text-sm text-muted-foreground">Still learning</p></div>
         </div>
         <div className="flex flex-col gap-2">
-          {missed.length > 0 && <Button size="lg" onClick={() => { setQueue([...missed]); setIndex(0); setTally({ again: 0, good: 0 }); setMissed([]); setRequeued(new Set()); setFlipped(false); }}>Practise {missed.length} missed</Button>}
+          {missed.length > 0 && <Button size="lg" onClick={() => { setQueue([...missed]); setIndex(0); setTally({ again: 0, good: 0 }); setMissed([]); setRequeued(new Set()); setFlipped(false); setFirstLooks(missed.length); }}>Practise {missed.length} missed</Button>}
           <Button size="lg" variant="outline" asChild><Link to="/practice">Back to Practice</Link></Button>
         </div>
       </div>
@@ -138,7 +144,7 @@ export default function Flashcards({ user }: { user: User }) {
             {RATINGS.map((r) => (
               <Button key={r} size="lg" variant="outline" className={cn("h-auto flex-col gap-0 py-2.5 text-base", TONE[r])} onClick={() => rate(r)}>
                 <span>{RATING_LABEL[r]}</span>
-                {!reverse && <span className="text-xs font-normal opacity-80">{gapFor(c.review.reviewStage, r, now)}</span>}
+                {!reverse && !isRepeat && <span className="text-xs font-normal opacity-80">{gapFor(c.review.reviewStage, r, now)}</span>}
               </Button>
             ))}
           </div>

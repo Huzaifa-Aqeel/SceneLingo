@@ -1041,7 +1041,7 @@ The learner shall be able to practise saved items using flashcards.
 - The learner thinks of the meaning and presses **Reveal answer** (or Space, or clicks the card).
 - Back: the type, English meaning, contextual meaning, the translation in the learner's language if saved, all synonyms, all examples, and the original subtitle with the saved text emphasised, the video title, and a link to the moment in the video.
 - The learner marks the card **Still learning** or **Got it** (keys 1 and 2, or the arrow keys). Each button shows when the card will come back (FR-PRA-007). The buttons appear only after the reveal. Two buttons are used on purpose: a finer scale only changes the next date and would slow the learner down on every card.
-- A card marked **Still learning** comes round once more in the same session.
+- A card marked **Still learning** comes round once more in the same session. That second look is practice only: it is recorded, but it does not change the card's schedule.
 
 ### FR-PRA-002 — Reverse flashcards
 
@@ -1093,11 +1093,11 @@ A **Review mistakes** mode, inside Practice, lists the cards whose last answer w
 ### FR-PRA-007 — Simple spaced review
 
 **Priority:** Must have  
-Each card sits on a ladder of gaps: 3, 7, 14, 30, and 60 days.
-- **Still learning:** back to the start, due now. The card stays in the due list (and in Review mistakes) until the learner marks it Got it.
-- **Got it:** one step up the ladder (a new card comes back in 3 days; never past the top).
+Each card sits on a ladder of steps, and each step has a wait: step 0 is 1 day, then 3, 7, 14, 30, and 60 days. A new card starts on step 0.
+- **Got it:** one step up (never past the top). A new card comes back in 3 days.
+- **Still learning:** one step down (never below step 0). The card comes back after the wait of the step it lands on, so a card that had climbed far returns later than one that was new: a card on step 3 (14 days) returns in 7 days, a card on step 1 or 0 returns tomorrow. A missed card is never due on the same day.
 
-Quiz and reverse answers do not move a card up: a miss sends it back to the start (due now), and a correct answer leaves its date alone. The rule is deterministic and does not reproduce full SM-2.
+Each button shows its result ("Tomorrow", "3 days", "1 month"). Quiz and reverse answers do not move a card up: a miss moves it down a step, and a correct answer leaves its date alone. The rule is deterministic and does not reproduce full SM-2.
 
 ### FR-PRA-008 — Practice on small screens
 

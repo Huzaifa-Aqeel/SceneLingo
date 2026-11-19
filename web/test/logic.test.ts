@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { blankOut, cardIdFor, normalizeText, selectedFrom, splitSentences, tokenize, wordsOf } from "@/lib/text";
-import { describeGap, gapFor, INTERVAL_DAYS, isDue, nextReview } from "@/lib/schedule";
+import { describeGap, gapFor, isDue, LADDER_DAYS, nextReview } from "@/lib/schedule";
 import { buildOptions, buildQuestion, planQuiz, shuffle } from "@/lib/quiz";
 import { buildSession, dueCount, mistakes, needsWork } from "@/lib/session";
 import { summarize } from "@/lib/stats";
@@ -64,13 +64,7 @@ describe("blanking the saved text", () => {
 describe("review schedule", () => {
   const now = new Date("2026-01-01T12:00:00Z");
   const days = (n: { dueAt: Date }) => Math.round((n.dueAt.getTime() - now.getTime()) / 86_400_000);
-  it("sends a missed card to the start, due straight away", () => {
-    const n = nextReview(4, "again", now);
-    expect(n.stage).toBe(0);
-    expect(n.dueAt.getTime()).toBe(now.getTime());
-    expect(isDue(n.dueAt, now)).toBe(true);
-  });
-  it("climbs the ladder one step on Got it and caps at the top", () => {
+  it("climbs the ladder one step on Got it and stops at the top", () => {
     let stage = 0;
     const gaps: number[] = [];
     for (let i = 0; i < 7; i++) {
@@ -78,13 +72,25 @@ describe("review schedule", () => {
       gaps.push(days(n));
       stage = n.stage;
     }
-    expect(gaps).toEqual([...INTERVAL_DAYS, 60, 60]);
+    expect(gaps).toEqual([3, 7, 14, 30, 60, 60, 60]);
+  });
+  it("moves down one step on Still learning, so the wait depends on how far the card had climbed", () => {
+    expect(LADDER_DAYS).toEqual([1, 3, 7, 14, 30, 60]);
+    const waits = [0, 1, 2, 3, 4, 5].map((stage) => days(nextReview(stage, "again", now)));
+    expect(waits).toEqual([1, 1, 3, 7, 14, 30]);
+    expect(nextReview(3, "again", now).stage).toBe(2);
+    expect(nextReview(0, "again", now).stage).toBe(0);
+  });
+  it("never makes a missed card due today", () => {
+    expect(isDue(nextReview(0, "again", now).dueAt, now)).toBe(false);
   });
   it("describes the gaps in plain words", () => {
-    expect(gapFor(2, "again", now)).toBe("Today");
+    expect(gapFor(0, "again", now)).toBe("Tomorrow");
+    expect(gapFor(2, "again", now)).toBe("3 days");
     expect(gapFor(0, "good", now)).toBe("3 days");
     expect(gapFor(3, "good", now)).toBe("1 month");
     expect(gapFor(4, "good", now)).toBe("2 months");
+    expect(describeGap(0)).toBe("Tomorrow");
   });
   it("treats a never-reviewed card as due", () => {
     expect(isDue(null, now)).toBe(true);

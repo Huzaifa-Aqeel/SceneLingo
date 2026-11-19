@@ -162,7 +162,7 @@ try {
   await page.waitForSelector('[role="button"][aria-label="Show the answer"]', { timeout: 10000 });
   check("the flashcard asks a question, shows the term, and offers a Reveal button", /1 \/ 5/.test(await text("main")) && /What does this mean\?/.test(await text("main")) && (await page.getByRole("button", { name: "Reveal answer" }).count()) === 1 && (await page.getByRole("button", { name: "Got it" }).count()) === 0);
   await page.getByRole("button", { name: "Reveal answer" }).click();
-  check("revealing flips it to the answer and shows two buttons with their next gaps", await until(async () => (await page.locator('[role="button"][aria-label="Show the term"]').count()) > 0 && (await page.getByRole("button", { name: /^Still learning\s*Today/ }).count()) === 1 && (await page.getByRole("button", { name: /^Got it\s*3 days/ }).count()) === 1 && (await page.getByRole("button", { name: /^(Again|Difficult|Easy)/ }).count()) === 0, 3000), await text("main"));
+  check("revealing flips it to the answer and shows two buttons with their next gaps", await until(async () => (await page.locator('[role="button"][aria-label="Show the term"]').count()) > 0 && (await page.getByRole("button", { name: /^Still learning\s*Tomorrow/ }).count()) === 1 && (await page.getByRole("button", { name: /^Got it\s*3 days/ }).count()) === 1 && (await page.getByRole("button", { name: /^(Again|Difficult|Easy)/ }).count()) === 0, 3000), await text("main"));
   check("the back shows the type, examples and the scene it came from", await until(async () => { const t = await text("main"); return /Examples/i.test(t) && /From the scene/i.test(t) && /(Idiom|Vocabulary|Slang|Expression)/i.test(t); }, 3000));
   await sleep(900); // let the flip animation finish before the screenshot
   await shot("06-flashcard-back");
@@ -184,7 +184,11 @@ try {
   const missedCard = (await getDoc(`users/${uid}/learningCards/${missedId}`)).json.fields;
   const rv = missedCard.review.mapValue.fields;
   check("the card's own statistics changed with its events (attempts, wrong count, last result)", rv.attemptCount.integerValue === "2" && rv.incorrectCount.integerValue === "1" && rv.lastResult.stringValue === "correct", JSON.stringify(rv));
-  check("a card marked Got it is scheduled for later; the next review date is stored", !!rv.nextReviewAt?.timestampValue && Number(rv.reviewStage.integerValue) === 1);
+  const hrs = (f) => (new Date(f.nextReviewAt.timestampValue).getTime() - Date.now()) / 3_600_000;
+  check("a missed card is due tomorrow, not today, and the second look did not move it", Number(rv.reviewStage.integerValue) === 0 && hrs(rv) > 20 && hrs(rv) < 28, JSON.stringify(rv));
+  const gotId = ev1.find((e) => e.rating === "good" && e.cardId !== missedId).cardId;
+  const got = (await getDoc(`users/${uid}/learningCards/${gotId}`)).json.fields.review.mapValue.fields;
+  check("a card marked Got it moves up a step and is due in about 3 days", Number(got.reviewStage.integerValue) === 1 && hrs(got) > 66 && hrs(got) < 78, JSON.stringify(got));
 
   // ---------------------------------------------------------------- quiz
   await page.getByRole("link", { name: "Back to Practice" }).click();

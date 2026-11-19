@@ -1,7 +1,8 @@
-// Review schedule (FR-PRA-007). Cards climb a ladder of growing gaps. "Got it" moves a card up one step;
-// "Still learning" sends it back to the start, due straight away, so it stays in the due list until it is known.
+// Review schedule (FR-PRA-007). A card sits on a ladder of gaps. "Got it" moves it up one step and
+// "Still learning" moves it down one step. The card comes back after the gap of the step it lands on.
 
-export const INTERVAL_DAYS = [3, 7, 14, 30, 60];
+export const LADDER_DAYS = [1, 3, 7, 14, 30, 60]; // the wait for a card on step 0, 1, 2 ... 5
+export const TOP_STAGE = LADDER_DAYS.length - 1;
 
 // "again" = Still learning, "good" = Got it.
 export type Rating = "again" | "good";
@@ -12,18 +13,17 @@ export interface Schedule { stage: number; dueAt: Date; minutes: number }
 const DAY = 86_400_000;
 
 export function nextReview(stage: number, rating: Rating, now: Date): Schedule {
-  if (rating === "again") return { stage: 0, minutes: 0, dueAt: now };
-  const at = Math.min(Math.max(Math.floor(stage) || 0, 0), INTERVAL_DAYS.length);
-  const s = Math.min(at + 1, INTERVAL_DAYS.length);
-  const days = INTERVAL_DAYS[s - 1]!;
-  return { stage: s, minutes: days * 1440, dueAt: new Date(now.getTime() + days * DAY) };
+  const at = Math.min(Math.max(Math.floor(stage) || 0, 0), TOP_STAGE);
+  const to = rating === "good" ? Math.min(at + 1, TOP_STAGE) : Math.max(at - 1, 0);
+  const days = LADDER_DAYS[to]!;
+  return { stage: to, minutes: days * 1440, dueAt: new Date(now.getTime() + days * DAY) };
 }
 
-// "Today", "3 days", "2 months": what each button promises.
+// "Tomorrow", "3 days", "2 months": what each button promises.
 export function describeGap(minutes: number): string {
-  const days = Math.round(minutes / 1440);
-  if (days < 1) return "Today";
-  if (days < 30) return `${days} ${days === 1 ? "day" : "days"}`;
+  const days = Math.max(1, Math.round(minutes / 1440));
+  if (days === 1) return "Tomorrow";
+  if (days < 30) return `${days} days`;
   const months = Math.round(days / 30);
   return `${months} ${months === 1 ? "month" : "months"}`;
 }

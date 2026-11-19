@@ -83,11 +83,13 @@ export const deleteCard = (uid: string, cardId: string) => deleteDoc(cardRef(uid
 export type PracticeMode = "flashcard" | "reverse" | "quiz" | "mistakes";
 
 // One atomic write: the review event (history) and the card's current statistics change together or not at all.
-// Only forward flashcards move a card up the ladder. In the other modes a miss sends the card back to the
-// start (due now) and a correct answer leaves its date alone.
-export async function recordReview(uid: string, card: LearningCard, rating: Rating, mode: PracticeMode, now = new Date()): Promise<void> {
+// Only forward flashcards move a card up the ladder. In the other modes a miss moves the card down a step
+// and a correct answer leaves its date alone. `schedule: false` records the answer without moving the card
+// (the second look at a missed card in the same session).
+export async function recordReview(uid: string, card: LearningCard, rating: Rating, mode: PracticeMode, opts: { schedule?: boolean; now?: Date } = {}): Promise<void> {
+  const now = opts.now ?? new Date();
   const correct = rating !== "again";
-  const moves = mode === "flashcard" || mode === "mistakes" || !correct;
+  const moves = (opts.schedule ?? true) && (mode === "flashcard" || mode === "mistakes" || !correct);
   const { stage, dueAt } = nextReview(card.review.reviewStage, rating, now);
   const batch = writeBatch(db);
   batch.set(doc(collection(db, "users", uid, "reviewEvents")), {
