@@ -1036,17 +1036,19 @@ The learner shall be able to practise saved items using flashcards.
 - The learner thinks of the meaning and presses **Reveal answer** (or Space, or clicks the card).
 - Back: the type, English meaning, contextual meaning, the translation in the learner's language if saved, all synonyms, all examples, and the original subtitle with the saved text emphasised, the video title, and a link to the moment in the video.
 - The learner marks the card **Still learning** or **Got it** (keys 1 and 2, or the arrow keys). Each button shows when the card will come back (FR-PRA-007). The buttons appear only after the reveal. Two buttons are used on purpose: a finer scale only changes the next date and would slow the learner down on every card.
-- A card marked **Still learning** comes round once more in the same session. That second look is practice only: it is recorded, but it does not change the card's schedule.
+- A card is shown once per session. A card marked **Got it** or **Still learning** is not shown again until its next date arrives (FR-PRA-007), neither later in the same session nor in another practice mode.
+- Flashcards, Reverse flashcards, and Quiz only use cards that are **due**. When nothing is due the screen says "Nothing due" and offers **Study anyway**.
+- **Study anyway** and **Review mistakes** are practice only: the answers are recorded in the review history and the card's statistics, but the card keeps its date.
 
 ### FR-PRA-002 — Reverse flashcards
 
 **Priority:** Could have  
-A **Reverse flashcards** mode shows the meaning first ("Which word or expression means this?") and the learner recalls the term. The back shows the term and the same details as FR-PRA-001. It uses the same two buttons as FR-PRA-001. Cards that are whole sentences are left out. Reverse results are recorded as review events and update the card's statistics, but only a miss changes its schedule (FR-PRA-007).
+A **Reverse flashcards** mode shows the meaning first ("Which word or expression means this?") and the learner recalls the term. The back shows the term and the same details as FR-PRA-001. It uses the same two buttons and the same rules as FR-PRA-001. Cards that are whole sentences are left out. 
 
 ### FR-PRA-003 — Quiz
 
 **Priority:** Must have  
-One **Quiz** mode builds up to ten multiple-choice questions from the learner's saved cards. It needs at least four saved cards, and says how many more are needed when there are fewer. Each question uses one of three formats, in turn:
+One **Quiz** mode builds up to ten multiple-choice questions about the learner's due cards (all cards under Study anyway), with the wrong options taken from all saved cards. A right answer counts as Got it and a wrong answer as Still learning, so the card moves on the ladder as in FR-PRA-007. It needs at least four saved cards, and says how many more are needed when there are fewer. Each question uses one of three formats, in turn:
 - **Guess the meaning:** the term (with its subtitle) is shown and the learner picks its meaning.
 - **Complete the sentence:** the saved subtitle is shown with the term blanked out and the learner picks the expression that fits.
 - **Contextual:** the subtitle is shown with the term highlighted and the learner picks what it means in that scene.
@@ -1092,7 +1094,7 @@ Each card sits on a ladder of steps, and each step has a wait: step 0 is 1 day, 
 - **Got it:** one step up (never past the top). A new card comes back in 3 days.
 - **Still learning:** one step down (never below step 0). The card comes back after the wait of the step it lands on, so a card that had climbed far returns later than one that was new: a card on step 3 (14 days) returns in 7 days, a card on step 1 or 0 returns tomorrow. A missed card is never due on the same day.
 
-Each button shows its result ("Tomorrow", "3 days", "1 month"). Quiz and reverse answers do not move a card up: a miss moves it down a step, and a correct answer leaves its date alone. The rule is deterministic and does not reproduce full SM-2.
+Each button shows its result ("Tomorrow", "3 days", "1 month"). Every answer to a due card, in any mode, moves the card by the same rule; practice-only sessions do not. The rule is deterministic and does not reproduce full SM-2.
 
 ### FR-PRA-008 — Practice on small screens
 

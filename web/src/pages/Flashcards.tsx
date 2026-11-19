@@ -16,17 +16,24 @@ import { gapFor, RATING_LABEL, type Rating } from "@/lib/schedule";
 import { buildSession, type SessionKind } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
-const SET_LABEL: Record<SessionKind, string> = { due: "Due now", all: "Flashcards", mistakes: "Mistakes" };
 const TONE: Record<Rating, string> = {
   again: "border-warning/60 text-warning hover:bg-warning/10 hover:text-warning",
   good: "border-success/60 text-success hover:bg-success/10 hover:text-success",
 };
 const RATINGS: readonly Rating[] = ["again", "good"];
 
+// A new session starts whenever the mode changes (for example from "Nothing due" to Study anyway).
 export default function Flashcards({ user }: { user: User }) {
   const [params] = useSearchParams();
+  return <FlashcardSession key={`${params.get("set") ?? "due"}-${params.get("dir") ?? ""}`} user={user} />;
+}
+
+function FlashcardSession({ user }: { user: User }) {
+  const [params] = useSearchParams();
   const reverse = params.get("dir") === "reverse";
-  const kind = (["due", "all", "mistakes"].includes(params.get("set") ?? "") ? params.get("set") : "all") as SessionKind;
+  // Normally only cards that are due. "all" (Study anyway) and "mistakes" are practice only: they never move a card.
+  const kind: SessionKind = params.get("set") === "all" ? "all" : params.get("set") === "mistakes" ? "mistakes" : "due";
+  const schedules = kind === "due";
   const { cards } = useCards(user.uid);
   const { prefs } = usePreferences(user.uid);
 
@@ -34,37 +41,22 @@ export default function Flashcards({ user }: { user: User }) {
   const [queue, setQueue] = useState<LearningCard[] | null>(null);
   useEffect(() => {
     // Reverse cards ask for the term, so a whole sentence can't be one.
-    if (cards && queue === null) {
-      const list = buildSession(reverse ? cards.filter((c) => c.selectionKind !== "sentence") : cards, kind, new Date());
-      setQueue(list);
-      setFirstLooks(list.length);
-    }
+    if (cards && queue === null) setQueue(buildSession(reverse ? cards.filter((c) => c.selectionKind !== "sentence") : cards, kind, new Date()));
   }, [cards, queue, kind, reverse]);
 
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [tally, setTally] = useState({ again: 0, good: 0 });
-  const [missed, setMissed] = useState<LearningCard[]>([]);
-  const [requeued, setRequeued] = useState<Set<string>>(new Set());
-  const [firstLooks, setFirstLooks] = useState<number | null>(null); // cards before the repeats the session adds
 
   const current = queue?.[index];
   const total = queue?.length ?? 0;
   const done = queue !== null && index >= total;
-  const isRepeat = firstLooks !== null && index >= firstLooks; // the second look at a missed card
   const mode = reverse ? "reverse" : kind === "mistakes" ? "mistakes" : "flashcard";
 
   function rate(rating: Rating) {
-    if (!current || !queue || !flipped) return;
-    void recordReview(user.uid, current, rating, mode, { schedule: !isRepeat }).catch(() => {});
+    if (!current || !flipped) return;
+    void recordReview(user.uid, current, rating, mode, { schedule: schedules }).catch(() => {});
     setTally((t) => ({ ...t, [rating]: t[rating] + 1 }));
-    if (rating === "again") {
-      setMissed((m) => [...m.filter((x) => x.id !== current.id), current]);
-      if (!requeued.has(current.id)) { // a missed card comes round once more in this session
-        setRequeued(new Set(requeued).add(current.id));
-        setQueue([...queue, current]);
-      }
-    }
     setFlipped(false);
     setIndex(index + 1);
   }
@@ -93,7 +85,13 @@ export default function Flashcards({ user }: { user: User }) {
 
   if (!cards || queue === null) return <Skeleton className="mx-auto h-96 max-w-2xl rounded-3xl" />;
   if (total === 0) {
-    return <Empty title={kind === "mistakes" ? "No mistakes to review" : "Nothing to study"} action={<Button asChild><Link to="/practice">Back to Practice</Link></Button>}>{kind === "due" ? "Nothing is due right now." : "You're all caught up."}</Empty>;
+    const back = <Button asChild variant="outline"><Link to="/practice">Back to Practice</Link></Button>;
+    if (kind === "mistakes") return <Empty title="No mistakes to review" action={back}>You're all caught up.</Empty>;
+    return (
+      <Empty title="Nothing due" action={<div className="flex gap-2"><Button asChild><Link to={`/practice/flashcards?set=all${reverse ? "&dir=reverse" : ""}`}>Study anyway</Link></Button>{back}</div>}>
+        Cards come back on the day their wait ends.
+      </Empty>
+    );
   }
 
   if (done) {
@@ -102,12 +100,9 @@ export default function Flashcards({ user }: { user: User }) {
         <h1 className="text-3xl font-bold">Nice work</h1>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-2xl bg-card p-5 shadow-sm"><p className="text-3xl font-bold text-success">{tally.good}</p><p className="text-sm text-muted-foreground">Got it</p></div>
-          <div className="rounded-2xl bg-card p-5 shadow-sm"><p className="text-3xl font-bold text-warning">{missed.length}</p><p className="text-sm text-muted-foreground">Still learning</p></div>
+          <div className="rounded-2xl bg-card p-5 shadow-sm"><p className="text-3xl font-bold text-warning">{tally.again}</p><p className="text-sm text-muted-foreground">Still learning</p></div>
         </div>
-        <div className="flex flex-col gap-2">
-          {missed.length > 0 && <Button size="lg" onClick={() => { setQueue([...missed]); setIndex(0); setTally({ again: 0, good: 0 }); setMissed([]); setRequeued(new Set()); setFlipped(false); setFirstLooks(missed.length); }}>Practise {missed.length} missed</Button>}
-          <Button size="lg" variant="outline" asChild><Link to="/practice">Back to Practice</Link></Button>
-        </div>
+        <Button size="lg" variant="outline" asChild><Link to="/practice">Back to Practice</Link></Button>
       </div>
     );
   }
@@ -119,7 +114,7 @@ export default function Flashcards({ user }: { user: User }) {
       <div className="mb-4 space-y-2">
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <Link to="/practice" className="hover:text-foreground">Close</Link>
-          <span>{reverse ? "Reverse flashcards" : SET_LABEL[kind]} · {index + 1} / {total}</span>
+          <span>{reverse ? "Reverse flashcards" : kind === "all" ? "Study anyway" : kind === "mistakes" ? "Mistakes" : "Flashcards"} · {index + 1} / {total}</span>
         </div>
         <Progress value={(index / total) * 100} aria-label="Progress" />
       </div>
@@ -144,7 +139,7 @@ export default function Flashcards({ user }: { user: User }) {
             {RATINGS.map((r) => (
               <Button key={r} size="lg" variant="outline" className={cn("h-auto flex-col gap-0 py-2.5 text-base", TONE[r])} onClick={() => rate(r)}>
                 <span>{RATING_LABEL[r]}</span>
-                {!reverse && !isRepeat && <span className="text-xs font-normal opacity-80">{gapFor(c.review.reviewStage, r, now)}</span>}
+                {schedules && <span className="text-xs font-normal opacity-80">{gapFor(c.review.reviewStage, r, now)}</span>}
               </Button>
             ))}
           </div>

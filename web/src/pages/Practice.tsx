@@ -43,11 +43,11 @@ export default function Practice({ user }: { user: User }) {
           <p className="text-sm opacity-90">{due > 0 ? "Due now" : "All caught up"}</p>
           <p className="text-3xl font-bold">{due > 0 ? `${due} ${due === 1 ? "card" : "cards"}` : "Nothing due"}</p>
         </div>
-        <Button asChild variant="secondary" size="lg"><Link to={due > 0 ? "/practice/flashcards?set=due" : "/practice/flashcards?set=all"}>{due > 0 ? "Start" : "Study anyway"}</Link></Button>
+        <Button asChild variant="secondary" size="lg"><Link to={due > 0 ? "/practice/flashcards" : "/practice/flashcards?set=all"}>{due > 0 ? "Start" : "Study anyway"}</Link></Button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Tile to="/practice/flashcards?set=all" icon={Layers} title="Flashcards" text="See the term, recall the meaning." />
-        <Tile to="/practice/flashcards?set=all&dir=reverse" icon={Repeat2} title="Reverse flashcards" text={reversible ? "See the meaning, recall the term." : "Needs a word or phrase card."} disabled={reversible === 0} />
+        <Tile to="/practice/flashcards" icon={Layers} title="Flashcards" text="See the term, recall the meaning." />
+        <Tile to="/practice/flashcards?dir=reverse" icon={Repeat2} title="Reverse flashcards" text={reversible ? "See the meaning, recall the term." : "Needs a word or phrase card."} disabled={reversible === 0} />
         <Tile to="/practice/quiz" icon={ListChecks} title="Quiz" text={cards.length >= QUIZ_MIN_CARDS ? "Test yourself with three kinds of questions." : `Save ${QUIZ_MIN_CARDS - cards.length} more to unlock.`} disabled={cards.length < QUIZ_MIN_CARDS} />
         <Tile to="/practice/flashcards?set=mistakes" icon={RotateCcw} title="Review mistakes" text={wrong ? `${wrong} to revisit, most missed first.` : "No mistakes. Nice."} disabled={wrong === 0} />
       </div>
