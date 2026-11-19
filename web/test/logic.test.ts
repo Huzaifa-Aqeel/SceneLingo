@@ -158,12 +158,15 @@ describe("practice sessions", () => {
     card("overdue-old", 1, "2026-01-02T00:00:00Z", "correct"),
     card("overdue-new", 1, "2026-01-08T00:00:00Z", "incorrect"),
   ];
-  it("counts due cards and picks them oldest first", () => {
+  const ids = (l: { id: string }[]) => l.map((c) => c.id).sort();
+  it("counts due cards and a due session holds exactly those", () => {
     expect(dueCount(cards, now)).toBe(3);
-    expect(buildSession(cards, "due", now).map((c) => c.id)).toEqual(["new", "overdue-old", "overdue-new"]);
+    expect(ids(buildSession(cards, "due", now, 20, seeded(4)))).toEqual(["new", "overdue-new", "overdue-old"]);
   });
   it("study-all puts due cards first, then the rest", () => {
-    expect(buildSession(cards, "all", now).map((c) => c.id)).toEqual(["new", "overdue-old", "overdue-new", "future"]);
+    const all = buildSession(cards, "all", now, 20, seeded(4));
+    expect(ids(all.slice(0, 3))).toEqual(["new", "overdue-new", "overdue-old"]);
+    expect(all[3]!.id).toBe("future");
   });
   it("mistakes are the cards last answered wrong", () => {
     expect(mistakes(cards).map((c) => c.id)).toEqual(["overdue-new"]);
@@ -176,6 +179,28 @@ describe("practice sessions", () => {
   });
   it("respects the session size", () => {
     expect(buildSession(cards, "all", now, 2)).toHaveLength(2);
+  });
+  describe("mixing overdue and new cards (65 / 35)", () => {
+    const overdue = (n: number) => Array.from({ length: n }, (_, i) => card(`o${String(i).padStart(2, "0")}`, 1, new Date(now.getTime() - (n - i) * 86_400_000).toISOString())); // o00 is the most overdue
+    const fresh = (n: number) => Array.from({ length: n }, (_, i) => card(`n${i}`, 0, null));
+    const split = (l: { id: string }[]) => ({ overdue: l.filter((c) => c.id.startsWith("o")).length, fresh: l.filter((c) => c.id.startsWith("n")).length });
+    it("takes 13 overdue and 7 new when there are plenty of both, the most overdue first", () => {
+      const s = buildSession([...fresh(60), ...overdue(40)], "due", now, 20, seeded(2));
+      expect(s).toHaveLength(20);
+      expect(split(s)).toEqual({ overdue: 13, fresh: 7 });
+      expect(ids(s).filter((i) => i.startsWith("o"))).toEqual(Array.from({ length: 13 }, (_, i) => `o${String(i).padStart(2, "0")}`));
+    });
+    it("hands spare slots to new cards when there are few overdue ones", () => {
+      expect(split(buildSession([...fresh(40), ...overdue(3)], "due", now, 20, seeded(2)))).toEqual({ overdue: 3, fresh: 17 });
+    });
+    it("hands spare slots to overdue cards when there are few new ones", () => {
+      expect(split(buildSession([...fresh(2), ...overdue(30)], "due", now, 20, seeded(2)))).toEqual({ overdue: 18, fresh: 2 });
+    });
+    it("is not filled up when little is due, and shuffles old and new together", () => {
+      expect(buildSession([...fresh(2), ...overdue(3)], "due", now, 20, seeded(2))).toHaveLength(5);
+      const s = buildSession([...fresh(60), ...overdue(40)], "due", now, 20, seeded(5)).map((c) => c.id[0]);
+      expect(s.join("")).not.toBe([...s].sort().join("")); // not all the old ones first, then the new
+    });
   });
 });
 

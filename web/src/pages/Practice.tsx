@@ -43,7 +43,7 @@ export default function Practice({ user }: { user: User }) {
           <p className="text-sm opacity-90">{due > 0 ? "Due now" : "All caught up"}</p>
           <p className="text-3xl font-bold">{due > 0 ? `${due} ${due === 1 ? "card" : "cards"}` : "Nothing due"}</p>
         </div>
-        <Button asChild variant="secondary" size="lg"><Link to={due > 0 ? "/practice/flashcards" : "/practice/flashcards?set=all"}>{due > 0 ? "Start" : "Study anyway"}</Link></Button>
+        <Button asChild variant="secondary" size="lg"><Link to={due > 0 ? "/practice/flashcards" : "/practice/flashcards?set=all"}>{due > 20 ? "Start next 20" : due > 0 ? "Start" : "Study anyway"}</Link></Button>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Tile to="/practice/flashcards" icon={Layers} title="Flashcards" text="See the term, recall the meaning." />
