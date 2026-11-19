@@ -82,7 +82,7 @@ try {
   await page.waitForSelector("form", { timeout: 20000 });
   await page.fill("#email", email); await page.fill("#password", password);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  check("signed in; Home shows the new subtitle and the four cards as due", await until(async () => /1\s*new subtitle/i.test(await text("main")) && /4\s*cards due/i.test(await text("main")), 25000), await text("main"));
+  check("signed in; the app opens on the Inbox with the new subtitle", await until(async () => /Inbox/.test(await text("main")) && /getting ahead of ourselves/i.test(await text("main")) && new URL(page.url()).pathname === "/inbox", 25000), await text("main") + page.url());
   await shot("01-home");
 
   // ---------------------------------------------------------------- inbox -> explore
@@ -225,7 +225,7 @@ try {
 
   // ---------------------------------------------------------------- progress
   await page.goto(`${SITE}/progress`);
-  check("Progress shows the totals computed from the review events", await until(async () => { const t = await text("main"); const total = (await events()).length; return new RegExp(`${total}\\s*Reviews`).test(t) && /Accuracy/.test(t) && /Day streak/.test(t) && /Recent activity/.test(t) && /Needs work/.test(t); }, 12000), await text("main"));
+  check("Progress shows the totals computed from the review events", await until(async () => { const t = await text("main"); const total = (await events()).length; return new RegExp(`${total}\\s*Reviews`).test(t) && /Accuracy/.test(t) && /Day streak/.test(t) && /Last 14 days/.test(t) && !/Recent activity|Needs work/.test(t); }, 12000), await text("main"));
   await shot("10-progress");
 
   // ---------------------------------------------------------------- mistakes

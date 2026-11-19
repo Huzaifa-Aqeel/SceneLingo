@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCards, useReviewEvents } from "@/hooks/useCards";
-import { needsWork } from "@/lib/session";
 import { summarize } from "@/lib/stats";
 
 // "2026-11-06" -> "6 Nov" (in the learner's own date style)
@@ -15,8 +14,6 @@ const shortDay = (iso: string) => {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y!, (m ?? 1) - 1, d ?? 1).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 };
-
-const MODE: Record<string, string> = { flashcard: "Flashcards", reverse: "Reverse flashcards", quiz: "Quiz", fill: "Fill in the blank", mistakes: "Mistakes" };
 
 export default function Progress({ user }: { user: User }) {
   const events = useReviewEvents(user.uid);
@@ -26,8 +23,6 @@ export default function Progress({ user }: { user: User }) {
   if (events.length === 0) {
     return (<><PageHeader title="Progress" /><Empty title="No practice yet" action={<Button asChild><Link to="/practice">Start practising</Link></Button>}>Your results will show up here.</Empty></>);
   }
-  const names = new Map(cards.map((c) => [c.id, c.selectedText]));
-  const weak = needsWork(cards);
   const max = Math.max(1, ...stats.recent.map((d) => d.total));
   const tiles = [
     { label: "Reviews", value: stats.total },
@@ -42,7 +37,7 @@ export default function Progress({ user }: { user: User }) {
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {tiles.map((t) => <div key={t.label} className="rounded-2xl bg-card p-4 shadow-sm"><p className="text-3xl font-bold">{t.value}</p><p className="text-sm text-muted-foreground">{t.label}</p></div>)}
       </div>
-      <Card className="mb-4 rounded-2xl">
+      <Card className="rounded-2xl">
         <CardHeader><CardTitle className="text-base">Last 14 days</CardTitle></CardHeader>
         <CardContent>
           <div className="flex h-32 items-end gap-1.5" role="img" aria-label={`Reviews per day over the last 14 days: ${stats.recent.map((d) => d.total).join(", ")}`}>
@@ -55,38 +50,6 @@ export default function Progress({ user }: { user: User }) {
             ))}
           </div>
           <p className="mt-2 flex justify-between text-xs text-muted-foreground"><span>{shortDay(stats.recent[0]!.day)}</span><span>Today</span></p>
-        </CardContent>
-      </Card>
-      {weak.length > 0 && (
-        <Card className="mb-4 rounded-2xl">
-          <CardHeader><CardTitle className="text-base">Needs work</CardTitle></CardHeader>
-          <CardContent>
-            <ul className="divide-y">
-              {weak.map((c) => (
-                <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
-                  <Link to={`/collection/${c.id}`} className="truncate font-medium hover:underline">{c.selectedText}</Link>
-                  <span className="shrink-0 text-sm text-muted-foreground">Missed {c.review.incorrectCount} of {c.review.attemptCount}</span>
-                </li>
-              ))}
-            </ul>
-            <Button asChild variant="outline" className="mt-3"><Link to="/practice/flashcards?set=mistakes">Review mistakes</Link></Button>
-          </CardContent>
-        </Card>
-      )}
-      <Card className="rounded-2xl">
-        <CardHeader><CardTitle className="text-base">Recent activity</CardTitle></CardHeader>
-        <CardContent>
-          <ul className="divide-y">
-            {events.slice(0, 15).map((e) => (
-              <li key={e.id} className="flex items-center justify-between gap-3 py-2.5">
-                <div className="min-w-0">
-                  {names.has(e.cardId) ? <Link to={`/collection/${e.cardId}`} className="truncate font-medium hover:underline">{names.get(e.cardId)}</Link> : <span className="truncate text-muted-foreground">Deleted card</span>}
-                  <p className="text-xs text-muted-foreground">{MODE[e.mode] ?? e.mode} · {e.reviewedAt.toLocaleDateString(undefined, { day: "numeric", month: "short" })}</p>
-                </div>
-                <span className={e.result === "correct" ? "text-sm font-medium text-success" : "text-sm font-medium text-warning"}>{e.result === "correct" ? "Correct" : "Missed"}</span>
-              </li>
-            ))}
-          </ul>
         </CardContent>
       </Card>
     </>

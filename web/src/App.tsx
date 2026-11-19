@@ -4,11 +4,10 @@ import { onIdTokenChanged, signOut, type User } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "@/firebase";
 import { clearExtensionSession, pingExtension, pushSession } from "@/extension";
-import { BarChart3, Home as HomeIcon, Inbox as InboxIcon, Layers, Library, User as UserIcon, type LucideIcon } from "lucide-react";
+import { BarChart3, Inbox as InboxIcon, Layers, Library, User as UserIcon, type LucideIcon } from "lucide-react";
 import { useCaptures } from "@/hooks/useCaptures";
 import { cn } from "@/lib/utils";
 import SignIn from "@/pages/SignIn";
-import Home from "@/pages/Home";
 import Inbox from "@/pages/Inbox";
 import Explore from "@/pages/Explore";
 import Collection from "@/pages/Collection";
@@ -19,8 +18,7 @@ import Quiz from "@/pages/Quiz";
 import Progress from "@/pages/Progress";
 import Profile from "@/pages/Profile";
 
-const NAV: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
-  { to: "/", label: "Home", icon: HomeIcon, end: true },
+const NAV: { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/inbox", label: "Inbox", icon: InboxIcon },
   { to: "/collection", label: "Collection", icon: Library },
   { to: "/practice", label: "Practice", icon: Layers },
@@ -48,7 +46,6 @@ function Shell({ user }: { user: User }) {
           <NavLink
             key={n.to}
             to={n.to}
-            end={n.end}
             className={({ isActive }) => cn("relative flex flex-col items-center gap-0.5 rounded-xl px-2 py-1.5 text-[11px] md:flex-row md:gap-3 md:px-3 md:py-2.5 md:text-sm md:font-medium", isActive ? "bg-primary/10 font-semibold text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground")}
           >
             <n.icon className="size-5" aria-hidden />
@@ -59,7 +56,6 @@ function Shell({ user }: { user: User }) {
       </nav>
       <main className="mx-auto w-full max-w-3xl p-4 pb-24 md:p-8">
         <Routes>
-          <Route path="/" element={<Home user={user} />} />
           <Route path="/inbox" element={<Inbox user={user} />} />
           <Route path="/explore/:captureId" element={<Explore user={user} />} />
           <Route path="/collection" element={<Collection user={user} />} />
@@ -69,7 +65,7 @@ function Shell({ user }: { user: User }) {
           <Route path="/practice/quiz" element={<Quiz user={user} />} />
           <Route path="/progress" element={<Progress user={user} />} />
           <Route path="/profile" element={<Profile user={user} onLogOut={logOut} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/inbox" replace />} />
         </Routes>
       </main>
     </div>

@@ -25,7 +25,7 @@
 | Ownership | Every capture is stamped with the signed-in UID at capture time and only ever syncs under that UID. |
 | Invalid captures | Prevented by capture-time validation. A rejected record is quarantined, never deleted silently, and reviewed in the web application's Profile. |
 | Toolbar icon | Opens or focuses the web application. No popup. |
-| Learning | Home, Inbox, Explore, My Collection, Learning Cards, Practice, Progress, Profile. Firestore is the source of truth. |
+| Learning | Inbox, Explore, My Collection, Learning Cards, Practice, Progress, Profile. Firestore is the source of truth. |
 | AI | Firebase AI Logic in the web application only. English cards use `PREFER_ON_DEVICE`. Translation into the learner's chosen language is routed per language: on-device where the model supports it on that device, cloud otherwise. |
 | Data | `learningCards` with per-language `translations`; `reviewEvents` written atomically with card statistics; duplicate cards identified by normalized selected text + normalized source sentence. |
 | Netflix | The existing Netflix capture code and manifest entry stay unchanged. Not part of the MVP acceptance criteria. |
@@ -138,7 +138,7 @@ A non-native English speaker who watches English-language movies, shows, or onli
 
 - Chrome desktop extension that captures the clicked subtitle (existing click-to-capture extraction logic, unchanged), shows a toast, stores each capture in a local per-capture queue, and synchronizes it directly to Firestore through the REST API with automatic retry, acting with the session the web application hands over.
 - A toolbar icon that opens the hosted web application (no popup), and a messaging channel from the web application to the extension for the session handoff and the review of unsaved lines.
-- Responsive React web application on Firebase Hosting with Home, Inbox, Explore, My Collection, Learning Cards, Practice, Progress, and Profile screens.
+- Responsive React web application on Firebase Hosting with Inbox, Explore, My Collection, Learning Cards, Practice, Progress, and Profile screens.
 - Reliable, idempotent, silently retrying synchronization from the extension service worker to the Firestore Inbox through the Firestore REST API, with strict per-user capture ownership.
 - Subtitle normalization and sentence segmentation at capture time in the extension, and word segmentation for selection in the dashboard, using one shared `Intl.Segmenter` module.
 - User selection of a word, phrase, or complete sentence from a capture.
@@ -193,7 +193,7 @@ A non-native English speaker who watches English-language movies, shows, or onli
         ▼            │
  Cloud Firestore ◄── source of truth ◄── React web application (Firebase Hosting)
                                            the learner signs in here, once
-                                           Home · Inbox · Explore · My Collection ·
+                                           Inbox · Explore · My Collection ·
                                            Learning Cards · Practice · Progress · Profile
                                            └─ Firebase AI Logic (hybrid English; translation
                                               routed per language) + App Check
@@ -510,7 +510,7 @@ Capturing requires a session in the extension, handed over by the web applicatio
 ### FR-CAP-009 — Toolbar icon opens the web application (no popup)
 
 **Priority:** Must have  
-The extension shall not define a popup, options page, side panel, or any page of its own. Clicking the toolbar icon opens the hosted SceneLingo web application in a new tab, or focuses an already-open SceneLingo tab instead of opening a duplicate. The web application decides what to show (sign-in if the learner is signed out, otherwise Home).
+The extension shall not define a popup, options page, side panel, or any page of its own. Clicking the toolbar icon opens the hosted SceneLingo web application in a new tab, or focuses an already-open SceneLingo tab instead of opening a duplicate. The web application decides what to show (sign-in if the learner is signed out, otherwise the Inbox).
 
 **Acceptance criteria:**
 - No popup, side panel, badge, or context-menu items appear at any time.
@@ -1019,17 +1019,12 @@ The learner sets one preference:
 
 ---
 
-## 11. Functional requirements — Practice, Home, and Progress
+## 11. Functional requirements — Practice and Progress
 
-### FR-HOME-001 — Home overview
+### FR-HOME-001 — Home screen
 
-**Priority:** Must have  
-The Home screen shall show:
-- Count of **new captures** in the Inbox, with a link to the Inbox.
-- Total saved learning items and category counts.
-- Items due for review.
-- Recent activity (recent captures and recently saved items).
-- A clear **Start practice** action.
+**Priority:** Removed  
+There is no Home screen. The application opens on the Inbox, which already shows what is new, and "Due now" lives on the Practice page. Unknown addresses (including `/`) lead to the Inbox.
 
 ### FR-PRA-001 — Flashcards
 
@@ -1088,7 +1083,7 @@ Every practice attempt shall create a review event in `users/{uid}/reviewEvents/
 ### FR-PRA-006 — Review mistakes
 
 **Priority:** Must have  
-A **Review mistakes** mode, inside Practice, lists the cards whose last answer was wrong or **Still learning**, the ones missed most often first, as flashcards. It records new outcomes the same way as other practice. Progress also shows a **Needs work** list of the cards missed most often, with "Missed N of M".
+A **Review mistakes** mode, inside Practice, lists the cards whose last answer was wrong or **Still learning**, the ones missed most often first, as flashcards. It records new outcomes the same way as other practice.
 
 ### FR-PRA-007 — Simple spaced review
 
@@ -1112,12 +1107,12 @@ After a practice session, show the number attempted, remembered, incorrect, and 
 ### FR-PRO-001 — Progress statistics
 
 **Priority:** Should have  
-The Progress section shall show learning statistics derived from Firestore data (review statistics come from `reviewEvents`, not only from the current state of each card): items saved over time, items by category, review accuracy, current streak, and items due.
+The Progress section shall show learning statistics derived from Firestore data (review statistics come from `reviewEvents`, not only from the current state of each card): items saved over time, items by category, review accuracy, current streak, and a 14-day chart. It shows nothing else: no activity feed and no lists of cards.
 
 ### FR-PRO-002 — Revision history
 
-**Priority:** Should have  
-The Progress section shall show recent review events (item, outcome, time) and allow opening the item.
+**Priority:** Removed  
+A list of recent review events was dropped to keep Progress uncluttered. The events are still stored, and the totals and chart are computed from them.
 
 ---
 
@@ -1335,7 +1330,7 @@ Notes:
 
 Notes:
 - `category` is the type the AI assigned. It is not part of the card identity, and it is not edited afterwards.
-- `review` holds the **current** learning statistics for scheduling and the Home/Practice views. History lives in `reviewEvents`.
+- `review` holds the **current** learning statistics for scheduling and the Practice view. History lives in `reviewEvents`.
 - `englishInferenceSource` is `ON_DEVICE` or `IN_CLOUD`, taken from the actual Firebase AI Logic response.
 - `selectionStart` / `selectionEnd` are character offsets within `sourceSentence`, used to build reliable cloze questions. They are nullable.
 - `source.platform` is `youtube` or `netflix`; `videoId` and `captureId` are nullable.
@@ -1453,7 +1448,6 @@ There is no popup, side panel, options page, account page, queue view, sync cont
 
 | Screen | Responsibility | Reached from |
 |---|---|---|
-| **Home** | Learning overview, new captures, items due, recent activity, **Start practice** | Primary navigation (and where the toolbar icon opens) |
 | **Inbox** | Subtitles captured on YouTube; process them at your own pace | Primary navigation |
 | **Explore** | Work on one capture: segment, select a word/phrase/sentence, explain, translate to your language, save | **Explore** action on an Inbox row |
 | **My Collection** | Saved vocabulary, idioms, slang, and expressions, grouped and filtered by type | Primary navigation |
@@ -1482,9 +1476,8 @@ On phones the primary navigation is a bottom bar. Explore and Learning Cards are
 1. **My Collection:** category groups with counts, search and filters, and a card list.
 2. **Learning Cards:** card detail with all saved English and translated fields plus source context, with delete.
 3. **Practice:** mode picker (Flashcards, Reverse flashcards, Quiz, Review mistakes), the review screens, and the session summary.
-4. **Progress:** statistics and revision history (FR-PRO-001, FR-PRO-002).
-5. **Home:** FR-HOME-001.
-6. **Profile:** account details and sign-out, preferences (FR-LIB-010), the extension's connection status and the unsaved-lines section (FR-CAP-011).
+4. **Progress:** statistics (FR-PRO-001).
+5. **Profile:** account details and sign-out, preferences (FR-LIB-010), the extension's connection status and the unsaved-lines section (FR-CAP-011).
 
 ### 16.5 Accessibility and language rendering
 
@@ -1719,7 +1712,7 @@ Submission closes on 30 November 2026 (per the Devpost listing), so prove the ri
 10. Save with duplicate prevention (normalized text + source sentence), and My Collection / Learning Cards browse, search, filter, and detail.
 11. Flashcards with reveal and two ratings, atomic review events plus card statistics, and next-review scheduling.
 12. Contextual sentence completion and Review mistakes.
-13. Home and Profile; a layout that works on a phone.
+13. Profile; a layout that works on a phone.
 14. App Check for AI Logic, Firestore rules, public repository, license, and README.
 
 ### P1 — Add if the P0 flow is stable
@@ -1786,7 +1779,7 @@ The MVP is considered complete when all of these checks pass:
 - [ ] Several languages can be saved on one card, and changing language keeps earlier translations.
 - [ ] User can explicitly save a card, and the capture is marked processed.
 - [ ] Saving the same expression with the same source sentence under a different category does not create a second card; a different source sentence creates a separate card.
-- [ ] Home, Inbox, Explore, My Collection, Learning Cards, Practice, Progress, and Profile are available, and the learner can use them on a phone browser with the same account.
+- [ ] Inbox, Explore, My Collection, Learning Cards, Practice, Progress, and Profile are available, and the learner can use them on a phone browser with the same account.
 - [ ] Practice offers flashcard reveal and two ratings, and works on a phone-sized screen.
 - [ ] Practice offers contextual sentence completion for eligible cards.
 - [ ] Every practice attempt writes a `reviewEvents` document and updates the card statistics in one atomic operation.
@@ -1872,7 +1865,7 @@ The following official sources informed the implementation constraints in this d
 SceneLingo is a Chrome extension and a hosted React web application around one personal learning account. The guiding principle is that the learner experiences it as a seamless learning companion, not as an extension they need to operate.
 
 - **Chrome extension (capture, invisible):** Nothing is visible during normal viewing except a brief toast after a deliberate click. The toolbar icon has no popup and simply opens the web application. The extension does YouTube subtitle extraction, sentence segmentation, capture-time validation, a per-capture local queue owned by the service worker, and automatic, silent, idempotent synchronization to Firestore through the REST API, with strict per-account ownership. It has no sign-in UI, no Firebase SDK, and no pages of its own.
-- **Hosted React web application (sign-in and learning):** The learner signs in here once, and the web application hands the session to the extension. It provides Home, Inbox (a real-time Firestore view), Explore, My Collection, Learning Cards, Practice, Progress, and Profile. It works with the extension closed, uninstalled, or on a phone.
+- **Hosted React web application (sign-in and learning):** The learner signs in here once, and the web application hands the session to the extension. It provides Inbox (a real-time Firestore view), Explore, My Collection, Learning Cards, Practice, Progress, and Profile. It works with the extension closed, uninstalled, or on a phone.
 - **Firebase AI Logic hybrid English explanation:** `PREFER_ON_DEVICE` for compact English learning cards from the web application, with cloud fallback and an honest inference-source badge.
 - **Translation in the learner's language:** the learner picks their language. Languages the on-device model supports on that device run with `PREFER_ON_DEVICE` (with cloud fallback); every other language runs with `ONLY_IN_CLOUD`. Support is detected at runtime, and the SDK-reported source is shown for each translation.
 - **Firebase backend:** Authentication (Email/Password, in the web application), Cloud Firestore as the single source of truth, and App Check for AI Logic. App Check for extension-origin Firestore requests is a validation item and is not assumed.

@@ -31,7 +31,9 @@ export default function Inbox({ user }: { user: User }) {
       {error && <Alert role="alert" className="mb-3"><AlertDescription>{error}</AlertDescription></Alert>}
       {!items && !error && <div className="space-y-3"><Skeleton className="h-28 rounded-2xl" /><Skeleton className="h-28 rounded-2xl" /></div>}
       {items && shown.length === 0 && (
-        filter === "new"
+        items.length === 0
+          ? <Empty title="No subtitles yet">Click a subtitle while you watch YouTube or Netflix.</Empty>
+          : filter === "new"
           ? <Empty title="You're all caught up" />
           : <Empty title="Nothing here" />
       )}

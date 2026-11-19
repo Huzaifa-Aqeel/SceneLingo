@@ -64,7 +64,7 @@ try {
   // 3. sign in through the real UI -> the extension must pick up the session on its own
   await web.fill("#email", email); await web.fill("#password", password);
   await web.getByRole("button", { name: "Sign in", exact: true }).click();
-  check("signed in through the real UI (Home is shown)", await until(async () => (await web.locator("h1", { hasText: "Home" }).count()) > 0, 20000));
+  check("signed in through the real UI (the Inbox is shown)", await until(async () => (await web.locator("h1", { hasText: "Inbox" }).count()) > 0, 20000));
   check("the extension received the session automatically (no second sign-in)", await until(async () => (await ping()).signedInUid === uid, 15000), JSON.stringify(await ping()));
   const profileDoc = await until(async () => (await rest("GET", `${DOCS}/users/${uid}`, idToken)).status === 200, 10000);
   check("the web app created the user's profile document", profileDoc);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { blankOut, cardIdFor, normalizeText, selectedFrom, splitSentences, tokenize, wordsOf } from "@/lib/text";
 import { describeGap, gapFor, isDue, LADDER_DAYS, nextReview } from "@/lib/schedule";
 import { buildOptions, buildQuestion, planQuiz, shuffle } from "@/lib/quiz";
-import { buildSession, dueCount, mistakes, needsWork } from "@/lib/session";
+import { buildSession, dueCount, mistakes } from "@/lib/session";
 import { summarize } from "@/lib/stats";
 import { buildExplainConfig, buildExplainPrompt, validateEnglishCard } from "@/ai/englishCard";
 import { parseCard } from "@/lib/schemas";
@@ -169,11 +169,10 @@ describe("practice sessions", () => {
     expect(mistakes(cards).map((c) => c.id)).toEqual(["overdue-new"]);
     expect(buildSession(cards, "mistakes", now).map((c) => c.id)).toEqual(["overdue-new"]);
   });
-  it("puts the most-missed mistakes first and ranks cards that need work", () => {
+  it("puts the most-missed mistakes first", () => {
     const miss = (id: string, wrong: number, tries: number, last: "correct" | "incorrect") => ({ id, review: { reviewStage: 0, lastResult: last, incorrectCount: wrong, attemptCount: tries } });
     const set = [miss("once", 1, 2, "incorrect"), miss("often", 4, 5, "incorrect"), miss("fixed", 3, 9, "correct"), miss("clean", 0, 3, "correct")];
     expect(mistakes(set).map((c) => c.id)).toEqual(["often", "once"]);
-    expect(needsWork(set).map((c) => c.id)).toEqual(["often", "fixed", "once"]);
   });
   it("respects the session size", () => {
     expect(buildSession(cards, "all", now, 2)).toHaveLength(2);

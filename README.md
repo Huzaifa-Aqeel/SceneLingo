@@ -32,7 +32,7 @@ YouTube tab ──click──▶ extension (content script ▶ service worker)
 ```
 
 - **Extension** (`extension/`): plain JavaScript, Manifest V3. It shows nothing while you watch except a brief toast. It has no sign-in screen and no Firebase SDK: the web app hands it the signed-in session, and it syncs captures to Firestore itself in the background. A capture is deleted locally only after Firestore confirms it, and it can never be saved under another account.
-- **Web app** (`web/`): React, TypeScript, Tailwind, shadcn/ui, React Router, Zod. Home, Inbox, Explore, Collection, Practice, Progress, Profile.
+- **Web app** (`web/`): React, TypeScript, Tailwind, shadcn/ui, React Router, Zod. Inbox, Explore, Collection, Practice, Progress, Profile.
 - **Firebase:** Authentication (email/password), Cloud Firestore with security rules, Firebase AI Logic, App Check (reCAPTCHA Enterprise), Remote Config (the cloud model name), Hosting.
 
 Documentation: [`docs/requirements.md`](docs/requirements.md) (full requirements) and [`docs/tech-stack.md`](docs/tech-stack.md).
