@@ -70,16 +70,3 @@ export const isEnglish = (code: string) => code === "en" || String(code).startsW
 
 // Firestore field-path-safe key for the card's `translations` map ("pt-BR" -> "pt_BR").
 export const translationKey = (code: string) => String(code).replace(/-/g, "_");
-
-// Suggests a language to translate into, from the browser's language list, or null.
-// English is skipped: these learners are studying English, and many browsers list it first
-// ("en-US") ahead of their own language.
-export function suggestLanguage(browserLanguages: readonly string[] = []): string | null {
-  for (const raw of browserLanguages) {
-    const base = String(raw).split("-")[0] ?? "";
-    if (base === "en") continue;
-    if (byCode.has(raw)) return raw;
-    if (base && byCode.has(base)) return base;
-  }
-  return null;
-}

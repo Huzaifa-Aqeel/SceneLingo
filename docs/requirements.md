@@ -1015,7 +1015,7 @@ The dashboard should use Firestore web offline persistence (multi-tab) so previo
 
 **Priority:** Should have  
 The learner sets one preference:
-- Native/support language (`nativeLanguage`): chosen by the learner from the catalog (FR-AI-011). There is no fixed default: on first use the app suggests the browser's language when it is in the catalog, and asks the learner to confirm. The learner can change it at any time, and earlier translations are kept.
+- Native/support language (`nativeLanguage`): chosen by the learner from the catalog (FR-AI-011). There is no default: the learner picks their language from the list, and can change it at any time, and earlier translations are kept.
 
 ---
 

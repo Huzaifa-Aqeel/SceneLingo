@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { hasPromptApi, probeLanguage, probeLanguages, routeFor, whereItRuns, type LanguageModelLike } from "@/ai/support";
 import { buildModelConfig, buildPrompt, validateTranslation } from "@/ai/translate";
-import { LANGUAGES, directionOf, findLanguage, suggestLanguage, translationKey } from "@/languages";
+import { LANGUAGES, directionOf, findLanguage, translationKey } from "@/languages";
 import { needsAttentionSchema, parseCapture, pingSchema } from "@/lib/schemas";
 
 // A fake Chrome Prompt API: supports exactly the output languages given, rejects the rest.
@@ -142,12 +142,5 @@ describe("language catalog", () => {
     expect(directionOf("unknown")).toBe("ltr");
     expect(translationKey("pt-BR")).toBe("pt_BR");
     expect(findLanguage("ur") && findLanguage("es") && findLanguage("en")).toBeTruthy();
-  });
-  it("suggests a language from the browser's list", () => {
-    expect(suggestLanguage(["ur-PK", "en-US"])).toBe("ur");
-    expect(suggestLanguage(["pt-BR"])).toBe("pt-BR");
-    expect(suggestLanguage(["xx-YY"])).toBeNull();
-    expect(suggestLanguage(["en-US", "ur-PK"])).toBe("ur"); // English listed first must not hide the learner's own language
-    expect(suggestLanguage(["en-US", "en"])).toBeNull();   // nothing to suggest for an English-only browser
   });
 });

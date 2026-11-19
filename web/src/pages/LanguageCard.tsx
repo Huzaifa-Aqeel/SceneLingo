@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LANGUAGES, findLanguage, suggestLanguage, type Language } from "@/languages";
+import { LANGUAGES, findLanguage, type Language } from "@/languages";
 import { routeFor, whereItRuns } from "@/ai/support";
 import { useLanguageSupport } from "@/ai/useSupport";
 import { usePreferences } from "@/hooks/usePreferences";
@@ -15,7 +15,6 @@ export default function LanguageCard({ uid }: { uid: string }) {
   const [saved, setSaved] = useState(false);
   if (prefs === undefined) return null;
 
-  const suggestion = suggestLanguage(navigator.languages);
   const current = prefs.nativeLanguage || "";
   const lang = current ? findLanguage(current) : null;
   const route = current ? routeFor(current, support, promptApiPresent) : "NONE";
@@ -31,14 +30,12 @@ export default function LanguageCard({ uid }: { uid: string }) {
     setTimeout(() => setSaved(false), 1500);
   }
 
-  const suggested = suggestion ? findLanguage(suggestion) : null;
   return (
     <Card id="language">
       <CardHeader>
         <CardTitle>Translation language</CardTitle>
         <CardDescription>
           Cards are explained in English, and can be translated into your language.
-          {!current && suggested && <> Your browser is set to <strong>{suggested.name}</strong>.</>}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -57,7 +54,6 @@ export default function LanguageCard({ uid }: { uid: string }) {
             </SelectContent>
           </Select>
         </div>
-        {!current && suggested && <Button onClick={() => choose(suggested.code)}>Use {suggested.name}</Button>}
         <p id="language-help" className="text-sm text-muted-foreground" aria-live="polite">
           {saved && "Saved. "}
           {lang && route === "PREFER_ON_DEVICE" && `${lang.name} is translated on this device.`}
