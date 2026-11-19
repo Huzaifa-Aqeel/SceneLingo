@@ -47,7 +47,7 @@ describe.skipIf(!live)("live cloud model", () => {
       const token = await appCheckToken();
       const raw = await generate(buildExplainPrompt(s.input), asJson(englishCardSchema()), token);
       const card = validateEnglishCard(raw);
-      console.log(`  ${s.name}: [${card.category}] ${card.meaningEn} | ex: ${card.exampleSentences[0]}`);
+      console.log(`  ${s.name}: [${card.category}] ${card.meaningEn} | synonyms(${card.synonyms.length}): ${card.synonyms.join(", ")} | examples: ${card.exampleSentences.length}`);
       if (s.expectCategory) expect(s.expectCategory).toContain(card.category);
       expect(card.exampleSentences.every((e) => e.toLowerCase() !== s.input.sourceSentence.toLowerCase())).toBe(true);
     }, 60_000);
