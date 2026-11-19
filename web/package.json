@@ -8,7 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prebuild": "node ../scripts/copy-extension-zip.mjs",
+    "predev": "node ../scripts/copy-extension-zip.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

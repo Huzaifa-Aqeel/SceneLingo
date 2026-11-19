@@ -9,7 +9,8 @@ import { chromium } from "playwright-core";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../..");
-const dist = path.resolve(here, "../dist");
+// EXTENSION_DIR lets the same journey run against any unpacked build, e.g. one unzipped from the live download.
+const dist = process.env.EXTENSION_DIR ? path.resolve(process.env.EXTENSION_DIR) : path.resolve(here, "../dist");
 const EXT_ID = fs.readFileSync(path.resolve(here, "../key/extension-id.txt"), "utf8").trim();
 const env = Object.fromEntries(fs.readFileSync(path.join(root, ".env.local"), "utf8").split("\n").filter((l) => l.includes("=") && !l.startsWith("#")).map((l) => { const i = l.indexOf("="); return [l.slice(0, i), l.slice(i + 1).trim()]; }));
 const PROJECT = env.VITE_FIREBASE_PROJECT_ID, KEY = env.VITE_FIREBASE_API_KEY;

@@ -21,6 +21,8 @@ if (JSON.stringify(manifest).includes("localhost")) problems.push("manifest trus
 if (/127\.0\.0\.1|localhost/.test(config)) problems.push("config points at a local server");
 if (!manifest.key) problems.push("no fixed extension key");
 if (!manifest.content_scripts?.length) problems.push("no content script");
+for (const f of Object.values(manifest.icons ?? {})) if (!fs.existsSync(path.join(out, f))) problems.push(`missing icon ${f}`);
+if (!manifest.icons) problems.push("no icons");
 if (manifest.externally_connectable.matches.length !== 1) problems.push("more than one trusted origin");
 if (problems.length) { console.error("NOT PACKAGED:", problems.join("; ")); process.exit(1); }
 

@@ -147,5 +147,7 @@ describe("language catalog", () => {
     expect(suggestLanguage(["ur-PK", "en-US"])).toBe("ur");
     expect(suggestLanguage(["pt-BR"])).toBe("pt-BR");
     expect(suggestLanguage(["xx-YY"])).toBeNull();
+    expect(suggestLanguage(["en-US", "ur-PK"])).toBe("ur"); // English listed first must not hide the learner's own language
+    expect(suggestLanguage(["en-US", "en"])).toBeNull();   // nothing to suggest for an English-only browser
   });
 });

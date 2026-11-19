@@ -571,6 +571,19 @@ The playback state after a capture shall be the same as before the click: a play
 **Priority:** Could have  
 The legacy `chrome.storage.local.captures` array from earlier builds shall be ignored by the new queue and shall never be assigned to an account automatically. No learner-facing UI is required for it. A one-time developer cleanup is acceptable.
 
+### FR-CAP-015 — Getting the extension
+
+**Priority:** Must have  
+The web application shall tell a learner who does not have the extension how to get it, in Profile under the Extension section, and nowhere else.
+
+**Acceptance criteria:**
+- The extension package is served by the site at `/scenelingo-extension.zip` as a real download, identical to the release package.
+- When the extension is not connected, and the browser is Chrome-family on a computer, the section shows a **Download extension** button and four short steps (unzip, open `chrome://extensions` and turn on Developer mode, Load unpacked and choose the folder, return to the page). Other browsers and phones see a one-line note that the extension works in Chrome, Edge and Brave on a computer.
+- When the extension is connected, no download or steps are shown.
+- Returning to the page after installing updates the status without a button press.
+- The extension has icons at the sizes Chrome needs, and the site's favicon matches.
+- A Chrome Web Store listing is the long-term way to install with one click and Chrome's own consent dialog (Chrome does not allow a website to install an extension itself). It is not required for the MVP.
+
 ---
 
 ## 7. Functional requirements — capture synchronization
@@ -1450,7 +1463,7 @@ There is no popup, side panel, options page, account page, queue view, sync cont
 | **Learning Cards** | Searchable card list and card detail, including English, saved translations, source context | From My Collection (and after saving in Explore) |
 | **Practice** | Flashcards, guess the meaning, sentence completion, contextual quizzes, mistake review, spaced review | Primary navigation |
 | **Progress** | Learning statistics and revision history | Primary navigation |
-| **Profile** | Account and sign-out, translation language, extension connection status, and "Lines that couldn't be saved" (only when needed) | Primary navigation |
+| **Profile** | Account and sign-out, translation language, extension connection status, and "Lines that couldn't be saved" (only when needed); when the extension is not connected, how to download and add it | Primary navigation |
 
 On phones the primary navigation is a bottom bar. Explore and Learning Cards are screens reached from the Inbox and My Collection; they are deep-linkable but are not separate top-level destinations. The Inbox and Explore never show or depend on the extension's local state.
 

@@ -10,8 +10,8 @@ Built for the Firebase #BuildHybridAI 2026 hackathon. English explanations use *
 
 You need desktop Chrome.
 
-1. **Install the extension.** Unzip [`release/scenelingo-extension.zip`](release/scenelingo-extension.zip). Open `chrome://extensions`, turn on **Developer mode**, choose **Load unpacked**, and select the unzipped folder.
-2. **Create an account** at https://herdproof.web.app. The extension picks up your sign-in by itself.
+1. **Create an account** at https://herdproof.web.app.
+2. **Install the extension.** In **Profile**, under **Extension**, choose **Download extension** and follow the four steps shown there (unzip, open `chrome://extensions`, turn on Developer mode, Load unpacked). The same zip is in this repository at [`release/scenelingo-extension.zip`](release/scenelingo-extension.zip). The extension picks up your sign-in by itself.
 3. **Open any YouTube video with captions** (press `c` to turn them on) and click a subtitle line. A short confirmation appears and the video keeps playing. If the tab was already open before you installed the extension, that's fine: no refresh is needed.
 4. **Open the app** (click the extension icon). The subtitle is in your **Inbox**. Choose **Explore**, select a word, a phrase, or the whole sentence, and press **Explain**.
 5. Choose your language in **Profile** to translate cards. Save a card, then use **Practice** (flashcards, quiz, fill in the blank, mistakes) and **Progress**.
@@ -65,6 +65,9 @@ You need Node 22+, the Firebase CLI, and a Firebase project with: Email/Password
    cd extension && npm install
    npm run build:dev    # development build in extension/dist (also trusts http://localhost:5173)
    npm run package      # production build in extension/dist-prod, zipped to release/
+   ```
+   The web app build copies `release/scenelingo-extension.zip` into the site, so run `npm run package` before `npm run build` in `web/`. The icons come from `extension/tools/icon.svg` (`node tools/make-icons.mjs` re-renders them).
+   ```
    ```
    The extension trusts exactly one website origin, `https://<project>.web.app` by default. To use another domain, set `SCENELINGO_WEB_ORIGIN` in `.env.local` before building. Its ID is fixed by the public key in `extension/key/`, so the web app can always find it. The matching private key is not in this repository.
 

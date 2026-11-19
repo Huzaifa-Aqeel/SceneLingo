@@ -8,3 +8,4 @@ extension/.keys/
 .firebase/
 *.log
 .DS_Store
+web/public/scenelingo-extension.zip
