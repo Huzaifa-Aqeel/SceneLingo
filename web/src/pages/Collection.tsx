@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/useCards";
-import { CATEGORIES, CATEGORY_LABEL, type Category } from "@/lib/schemas";
+import { CATEGORIES, CATEGORY_LABEL, CATEGORY_PLURAL, type Category } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
 
-const PLURAL: Record<Category, string> = { vocabulary: "Vocabulary", idiom: "Idioms", slang: "Slang", expression: "Expressions" };
+const PLURAL = CATEGORY_PLURAL;
 
 export default function Collection({ user }: { user: User }) {
   const { cards, error } = useCards(user.uid);

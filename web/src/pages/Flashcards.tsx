@@ -12,6 +12,7 @@ import { useCards } from "@/hooks/useCards";
 import { usePreferences } from "@/hooks/usePreferences";
 import { translationKey } from "@/languages";
 import type { LearningCard } from "@/lib/schemas";
+import { categoryName, inCategory, parseCategory, practiceUrl } from "@/lib/category";
 import { gapFor, RATING_LABEL, type Rating } from "@/lib/schedule";
 import { buildSession, type SessionKind } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -25,12 +26,15 @@ const RATINGS: readonly Rating[] = ["again", "good"];
 // A new session starts whenever the mode changes (for example from "Nothing due" to Study anyway).
 export default function Flashcards({ user }: { user: User }) {
   const [params] = useSearchParams();
-  return <FlashcardSession key={`${params.get("set") ?? "due"}-${params.get("dir") ?? ""}`} user={user} />;
+  return <FlashcardSession key={`${params.get("set") ?? "due"}-${params.get("dir") ?? ""}-${params.get("cat") ?? ""}`} user={user} />;
 }
 
 function FlashcardSession({ user }: { user: User }) {
   const [params] = useSearchParams();
   const reverse = params.get("dir") === "reverse";
+  const cat = parseCategory(params.get("cat"));
+  const where = categoryName(cat);
+  const home = practiceUrl("/practice", { cat });
   // Normally only cards that are due. "all" (Study anyway) and "mistakes" are practice only: they never move a card.
   const kind: SessionKind = params.get("set") === "all" ? "all" : params.get("set") === "mistakes" ? "mistakes" : "due";
   const schedules = kind === "due";
@@ -41,8 +45,8 @@ function FlashcardSession({ user }: { user: User }) {
   const [queue, setQueue] = useState<LearningCard[] | null>(null);
   useEffect(() => {
     // Reverse cards ask for the term, so a whole sentence can't be one.
-    if (cards && queue === null) setQueue(buildSession(reverse ? cards.filter((c) => c.selectionKind !== "sentence") : cards, kind, new Date()));
-  }, [cards, queue, kind, reverse]);
+    if (cards && queue === null) setQueue(buildSession(reverse ? inCategory(cards, cat).filter((c) => c.selectionKind !== "sentence") : inCategory(cards, cat), kind, new Date()));
+  }, [cards, queue, kind, reverse, cat]);
 
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -85,10 +89,10 @@ function FlashcardSession({ user }: { user: User }) {
 
   if (!cards || queue === null) return <Skeleton className="mx-auto h-96 max-w-2xl rounded-3xl" />;
   if (total === 0) {
-    const back = <Button asChild variant="outline"><Link to="/practice">Back to Practice</Link></Button>;
-    if (kind === "mistakes") return <Empty title="No mistakes to review" action={back}>You're all caught up.</Empty>;
+    const back = <Button asChild variant="outline"><Link to={home}>Back to Practice</Link></Button>;
+    if (kind === "mistakes") return <Empty title={where ? `No mistakes in ${where}` : "No mistakes to review"} action={back}>You're all caught up.</Empty>;
     return (
-      <Empty title="Nothing due" action={<div className="flex gap-2"><Button asChild><Link to={`/practice/flashcards?set=all${reverse ? "&dir=reverse" : ""}`}>Study anyway</Link></Button>{back}</div>}>
+      <Empty title={where ? `Nothing due in ${where}` : "Nothing due"} action={<div className="flex gap-2"><Button asChild><Link to={practiceUrl("/practice/flashcards", { cat, set: "all", dir: reverse ? "reverse" : undefined })}>Study anyway</Link></Button>{back}</div>}>
         Cards come back on the day their wait ends.
       </Empty>
     );
@@ -102,7 +106,7 @@ function FlashcardSession({ user }: { user: User }) {
           <div className="rounded-2xl bg-card p-5 shadow-sm"><p className="text-3xl font-bold text-success">{tally.good}</p><p className="text-sm text-muted-foreground">Got it</p></div>
           <div className="rounded-2xl bg-card p-5 shadow-sm"><p className="text-3xl font-bold text-warning">{tally.again}</p><p className="text-sm text-muted-foreground">Still learning</p></div>
         </div>
-        <Button size="lg" variant="outline" asChild><Link to="/practice">Back to Practice</Link></Button>
+        <Button size="lg" variant="outline" asChild><Link to={home}>Back to Practice</Link></Button>
       </div>
     );
   }
@@ -113,8 +117,8 @@ function FlashcardSession({ user }: { user: User }) {
     <div className="mx-auto max-w-2xl">
       <div className="mb-4 space-y-2">
         <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <Link to="/practice" className="hover:text-foreground">Close</Link>
-          <span>{reverse ? "Reverse flashcards" : kind === "all" ? "Study anyway" : kind === "mistakes" ? "Mistakes" : "Flashcards"} · {index + 1} / {total}</span>
+          <Link to={home} className="hover:text-foreground">Close</Link>
+          <span>{reverse ? "Reverse flashcards" : kind === "all" ? "Study anyway" : kind === "mistakes" ? "Mistakes" : "Flashcards"}{where && ` · ${where}`} · {index + 1} / {total}</span>
         </div>
         <Progress value={(index / total) * 100} aria-label="Progress" />
       </div>

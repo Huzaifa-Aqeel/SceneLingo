@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { blankOut, cardIdFor, normalizeText, selectedFrom, splitSentences, tokenize, wordsOf } from "@/lib/text";
 import { describeGap, gapFor, isDue, LADDER_DAYS, nextReview } from "@/lib/schedule";
 import { buildOptions, buildQuestion, planQuiz, shuffle } from "@/lib/quiz";
+import { categoriesPresent, inCategory, parseCategory, practiceUrl } from "@/lib/category";
 import { buildSession, dueCount, mistakes } from "@/lib/session";
 import { summarize } from "@/lib/stats";
 import { buildExplainConfig, buildExplainPrompt, validateEnglishCard } from "@/ai/englishCard";
@@ -117,8 +118,8 @@ describe("quiz options", () => {
 });
 
 describe("quiz questions", () => {
-  const mk = (id: string, text: string, sentence: string, meaning: string, ctx: string, kind = "phrase") =>
-    ({ id, selectedText: text, selectionKind: kind, sourceSentence: sentence, meaningEn: meaning, contextualMeaningEn: ctx });
+  const mk = (id: string, text: string, sentence: string, meaning: string, ctx: string, kind = "phrase", category = "idiom") =>
+    ({ id, category, selectedText: text, selectionKind: kind, sourceSentence: sentence, meaningEn: meaning, contextualMeaningEn: ctx });
   const cards = [
     mk("a", "jump the gun", "You always jump the gun.", "to act too early", "he is rushing"),
     mk("b", "under the weather", "I'm under the weather today.", "slightly ill", "she feels sick"),
@@ -145,6 +146,49 @@ describe("quiz questions", () => {
     expect(qs).toHaveLength(5);
     expect(new Set(qs.map((q) => q.format)).size).toBe(3);
     expect(qs.every((q) => q.options.filter((o) => o.correct).length === 1)).toBe(true);
+  });
+});
+
+describe("practising one category", () => {
+  const c = (id: string, category: string) => ({ id, category });
+  const list = [c("a", "idiom"), c("b", "slang"), c("c", "idiom"), c("d", "vocabulary")];
+  it("reads the category from the address and ignores anything else", () => {
+    expect(parseCategory("idiom")).toBe("idiom");
+    expect(parseCategory("nonsense")).toBe("all");
+    expect(parseCategory(null)).toBe("all");
+  });
+  it("filters cards by category, and All keeps everything", () => {
+    expect(inCategory(list, "idiom").map((x) => x.id)).toEqual(["a", "c"]);
+    expect(inCategory(list, "all")).toHaveLength(4);
+    expect(inCategory(list, "expression")).toEqual([]);
+  });
+  it("lists only the categories the learner has, in the usual order", () => {
+    expect(categoriesPresent(list)).toEqual(["vocabulary", "idiom", "slang"]);
+    expect(categoriesPresent([c("x", "idiom")])).toEqual(["idiom"]);
+  });
+  it("builds addresses with only the parts that are set", () => {
+    expect(practiceUrl("/practice/quiz")).toBe("/practice/quiz");
+    expect(practiceUrl("/practice/quiz", { cat: "all" })).toBe("/practice/quiz");
+    expect(practiceUrl("/practice/flashcards", { cat: "slang", set: "all", dir: "reverse" })).toBe("/practice/flashcards?set=all&dir=reverse&cat=slang");
+  });
+  it("prefers wrong options from the same category, then fills up from the others", () => {
+    const o = buildOptions("right", ["other1", "other2", "other3", "same1", "same2"], seeded(7), 4, ["same1", "same2"])!;
+    const wrong = o.filter((x) => !x.correct).map((x) => x.text);
+    expect(wrong).toContain("same1");
+    expect(wrong).toContain("same2");
+    expect(wrong).toHaveLength(3);
+    const few = buildOptions("right", ["other1", "other2", "other3"], seeded(7), 4, ["same1"])!;
+    expect(few.filter((x) => !x.correct).map((x) => x.text)).toContain("same1");
+  });
+  it("quiz questions take their wrong options from the same category first", () => {
+    const mk = (id: string, category: string, meaning: string) => ({ id, category, selectedText: id, selectionKind: "phrase", sourceSentence: `a ${id} b`, meaningEn: meaning, contextualMeaningEn: meaning });
+    const cards = [mk("i1", "idiom", "idiom one"), mk("i2", "idiom", "idiom two"), mk("i3", "idiom", "idiom three"), mk("s1", "slang", "slang one"), mk("s2", "slang", "slang two")];
+    for (let seed = 1; seed < 8; seed++) {
+      const q = buildQuestion(cards[0]!, cards, "meaning", seeded(seed))!;
+      const wrong = q.options.filter((o) => !o.correct).map((o) => o.text);
+      expect(wrong).toContain("idiom two");
+      expect(wrong).toContain("idiom three");
+    }
   });
 });
 

@@ -13,7 +13,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../..");
 const env = Object.fromEntries(fs.readFileSync(path.join(root, ".env.local"), "utf8").split("\n").filter((l) => l.includes("=") && !l.startsWith("#")).map((l) => { const i = l.indexOf("="); return [l.slice(0, i), l.slice(i + 1).trim()]; }));
 const PROJECT = env.VITE_FIREBASE_PROJECT_ID, KEY = env.VITE_FIREBASE_API_KEY;
-const SITE = "https://herdproof.web.app";
+const SITE = process.env.SITE || "https://herdproof.web.app"; // a local address runs the build in web/dist from disk (nothing is deployed)
 const DOCS = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
 const SHOTS = "/tmp/shots"; fs.mkdirSync(SHOTS, { recursive: true });
 
@@ -55,6 +55,15 @@ const exe = path.join(base, dir, fs.readdirSync(path.join(base, dir)).find((x) =
 const browser = await chromium.launch({ executablePath: exe, args: ["--no-sandbox"] });
 const page = await browser.newPage({ viewport: { width: 1180, height: 820 } });
 const problems = [];
+if (SITE.startsWith("http://localhost")) {
+  const DIST = path.join(root, "web/dist");
+  const TYPES = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".png": "image/png", ".json": "application/json", ".ico": "image/x-icon", ".zip": "application/zip" };
+  await page.route(`${SITE}/**`, (route) => {
+    let file = path.join(DIST, decodeURIComponent(new URL(route.request().url()).pathname));
+    if (!file.startsWith(DIST) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(DIST, "index.html");
+    route.fulfill({ status: 200, contentType: TYPES[path.extname(file)] || "application/octet-stream", body: fs.readFileSync(file) });
+  });
+}
 page.on("console", (m) => { const t = m.text(); if (/Content Security Policy|Refused to/.test(t)) problems.push("CSP: " + t.slice(0, 160)); });
 page.on("pageerror", (e) => problems.push("pageerror: " + String(e).slice(0, 160)));
 
@@ -158,6 +167,12 @@ try {
   await page.getByRole("link", { name: /Practice/ }).click();
   check("Practice shows what is due and four ways to study", await until(async () => /5 cards/.test(await text("main")) && (await page.getByText("Flashcards", { exact: true }).count()) > 0 && (await page.getByText("Reverse flashcards").count()) > 0 && (await page.getByText("Quiz", { exact: true }).count()) > 0 && (await page.getByText("Review mistakes").count()) > 0 && (await page.getByText("Fill in the blank").count()) === 0, 8000));
   await shot("05-practice");
+  const pill = (name) => page.getByRole("button", { name: new RegExp(`^${name}\\s*\\d`) });
+  check("a row of type buttons shows how many cards are due in each", await until(async () => (await page.getByRole("group", { name: "Practise by type" }).count()) === 1 && /All\s*5/.test(await text("main")) && /Idioms\s*3/.test(await text("main")) && /Vocabulary\s*1/.test(await text("main")) && /Slang\s*1/.test(await text("main")) && (await page.getByRole("button", { name: /^Expressions/ }).count()) === 0, 5000), await text("main"));
+  await pill("Idioms").click();
+  check("choosing Idioms narrows the due banner and says so", await until(async () => /Due now · Idioms/.test(await text("main")) && /3 cards/.test(await text("main")) && /cat=idiom/.test(page.url()), 3000), await text("main") + page.url());
+  await pill("All").click();
+  check("All brings everything back", await until(async () => /Due now/.test(await text("main")) && /5 cards/.test(await text("main")) && !/cat=/.test(page.url()), 3000));
   await page.getByRole("link", { name: "Start" }).click();
   await page.waitForSelector('[role="button"][aria-label="Show the answer"]', { timeout: 10000 });
   check("the flashcard asks a question, shows the term, and offers a Reveal button", /1 \/ 5/.test(await text("main")) && /What does this mean\?/.test(await text("main")) && (await page.getByRole("button", { name: "Reveal answer" }).count()) === 1 && (await page.getByRole("button", { name: "Got it" }).count()) === 0);
@@ -228,6 +243,20 @@ try {
   await page.getByRole("button", { name: "Reveal answer" }).click();
   await page.getByRole("button", { name: "Still learning" }).click();
   check("reverse answers are recorded as review events", !!(await until(async () => (await events()).filter((e) => e.mode === "reverse").length === 2, 8000)));
+
+  // ---------------------------------------------------------------- practising one type
+  await page.goto(`${SITE}/practice?cat=slang`);
+  check("a type with nothing due says so, and the choice survives in the address", await until(async () => /All caught up · Slang/.test(await text("main")) && /Nothing due/.test(await text("main")) && (await page.getByRole("button", { name: /^Slang/ }).getAttribute("aria-pressed")) === "true", 8000), await text("main"));
+  await page.getByRole("link", { name: "Study anyway" }).click();
+  await page.waitForSelector('[role="button"][aria-label="Show the answer"]', { timeout: 10000 });
+  check("Study anyway inside a type shows only that type", /Study anyway · Slang · 1 \/ 1/.test(await text("main")), await text("main"));
+  await page.getByRole("link", { name: "Close" }).click();
+  check("closing returns to the same type", /cat=slang/.test(page.url()));
+  await page.goto(`${SITE}/practice/flashcards?cat=slang`);
+  check("flashcards for a type with nothing due say which type", await until(async () => /Nothing due in Slang/.test(await text("main")), 8000), await text("main"));
+  await page.goto(`${SITE}/practice/quiz?set=all&cat=idiom`);
+  await page.waitForSelector('[role="group"][aria-label="Choices"]', { timeout: 10000 });
+  check("a quiz for one type asks only about that type's cards (three idioms)", /Study anyway · Idioms · 1 \/ 3/.test(await text("main")), await text("main"));
 
   // ---------------------------------------------------------------- progress
   await page.goto(`${SITE}/progress`);

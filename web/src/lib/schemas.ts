@@ -65,6 +65,7 @@ export type TranslationContent = z.infer<typeof translationOutputSchema>;
 export const CATEGORIES = ["vocabulary", "idiom", "slang", "expression"] as const;
 export type Category = (typeof CATEGORIES)[number];
 export const CATEGORY_LABEL: Record<Category, string> = { vocabulary: "Vocabulary", idiom: "Idiom", slang: "Slang", expression: "Expression" };
+export const CATEGORY_PLURAL: Record<Category, string> = { vocabulary: "Vocabulary", idiom: "Idioms", slang: "Slang", expression: "Expressions" };
 
 const short = (n: number) => z.string().trim().min(1).max(n);
 const optional = (n: number) => z.string().trim().max(n).nullish().transform((v) => v || null);

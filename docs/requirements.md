@@ -1074,7 +1074,9 @@ One **Quiz** mode builds up to ten multiple-choice questions about the learner's
 ### FR-PRA-004 — Practice hub
 
 **Priority:** Must have  
-Practice offers Flashcards, Reverse flashcards, Quiz, and Review mistakes, plus a single "Due now" action. Options that cannot run yet say why (for example "Save 2 more to unlock").
+Practice offers Flashcards, Reverse flashcards, Quiz, and Review mistakes, plus a single "Due now" action.
+
+**Practising one type:** When the learner has cards in at least two categories (vocabulary, idiom, slang, expression), a row of buttons appears above the Due now banner: **All** (the default) and one button for each category the learner has cards in, each showing how many cards of that category are due. A category with nothing due stays visible but dimmed, with a count of 0. Choosing a category limits the Due now banner, Flashcards, Reverse flashcards, Quiz, and Review mistakes to cards of that category; the 65/35 mix and the 20-card cap apply inside it. The choice is kept in the address (`?cat=`) so Back and Close return to it, and it is not remembered between visits. When nothing is due in the chosen category the screen says "Nothing due in Slang" and offers Study anyway within that category. The schedule stays one per card, never per category. Quiz questions are about the chosen category's cards, and their wrong options come from the same category first and from the other categories only to fill up. With a single category the row is not shown. Options that cannot run yet say why (for example "Save 2 more to unlock").
 
 ### FR-PRA-005 — Track outcomes and review events
 
