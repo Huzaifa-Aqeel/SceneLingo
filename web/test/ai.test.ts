@@ -62,7 +62,8 @@ describe("per-language routing", () => {
   it("detects the Prompt API and labels in plain words", () => {
     expect(hasPromptApi({})).toBe(false);
     expect(hasPromptApi({ LanguageModel: { availability() {} } })).toBe(true);
-    expect(whereItRuns("PREFER_ON_DEVICE")).toBe("On this device");
+    expect(whereItRuns("PREFER_ON_DEVICE", "available")).toBe("On this device");
+    expect(whereItRuns("PREFER_ON_DEVICE", "downloadable")).toBe("On this device once downloaded");
     expect(whereItRuns("ONLY_IN_CLOUD")).toBe("In the cloud");
   });
 });

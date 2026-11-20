@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { discardLines, getNeedsAttention, pingExtension, pushSession } from "@/extension";
 import { canInstallExtension, EXTENSION_ZIP } from "@/lib/browser";
 import type { NeedsAttention } from "@/lib/schemas";
+import OnDeviceCard from "@/components/OnDeviceCard";
 import LanguageCard from "./LanguageCard";
 
 export default function Profile({ user, onLogOut }: { user: User; onLogOut: () => void }) {
@@ -52,6 +53,7 @@ export default function Profile({ user, onLogOut }: { user: User; onLogOut: () =
         <CardContent className="space-y-3"><p>{user.email}</p><Button variant="outline" onClick={onLogOut}>Sign out</Button></CardContent>
       </Card>
       <LanguageCard uid={user.uid} />
+      <OnDeviceCard />
       <Card>
         <CardHeader><CardTitle>Extension</CardTitle></CardHeader>
         <CardContent>

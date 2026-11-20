@@ -51,6 +51,8 @@ export function routeFor(code: string | undefined, support: SupportMap | null | 
   return state && ON_DEVICE_STATES.has(state) ? "PREFER_ON_DEVICE" : "ONLY_IN_CLOUD";
 }
 
-export function whereItRuns(route: Route): string {
-  return route === "PREFER_ON_DEVICE" ? "On this device" : route === "ONLY_IN_CLOUD" ? "In the cloud" : "";
+// `state` is the probe result for the language: until the model is actually here, the cloud answers.
+export function whereItRuns(route: Route, state?: Availability): string {
+  if (route === "PREFER_ON_DEVICE") return state === "available" ? "On this device" : "On this device once downloaded";
+  return route === "ONLY_IN_CLOUD" ? "In the cloud" : "";
 }

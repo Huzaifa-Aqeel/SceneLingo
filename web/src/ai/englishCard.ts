@@ -3,7 +3,8 @@ import { getGenerativeModel, InferenceMode, Schema } from "firebase/ai";
 import type { FirebaseApp } from "firebase/app";
 import { CATEGORIES, englishCardOutputSchema, type EnglishCardContent } from "@/lib/schemas";
 import type { SelectionKind } from "@/lib/text";
-import { CLOUD_MODEL, getAi, getCloudModel, sourceOf, type Source } from "./client";
+import { CLOUD_MODEL, getAi, getCloudModel, type Source } from "./client";
+import { askHybrid } from "./hybrid";
 
 export const ENGLISH_PROMPT_VERSION = "1.1";
 
@@ -82,17 +83,15 @@ export function validateEnglishCard(raw: unknown): EnglishCardContent {
 
 export interface ExplainResult { content: EnglishCardContent; source: Source; promptVersion: string }
 
+// Runs only when the learner presses Explain. Nothing here (and no on-device model) is touched before that.
 export async function explain({ app, input }: { app: FirebaseApp; input: ExplainInput }): Promise<ExplainResult> {
-  const model = getGenerativeModel(getAi(app), buildExplainConfig(getCloudModel()));
-  const prompt = buildExplainPrompt(input);
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 2; attempt++) { // one retry if the answer isn't a valid card
-    const result = await model.generateContent(prompt);
-    try {
-      return { content: validateEnglishCard(result.response.text()), source: sourceOf(result.response.inferenceSource), promptVersion: ENGLISH_PROMPT_VERSION };
-    } catch (e) {
-      lastError = e;
-    }
-  }
-  throw lastError;
+  const config = buildExplainConfig(getCloudModel());
+  const ai = getAi(app);
+  const { value, source } = await askHybrid({
+    hybrid: getGenerativeModel(ai, config),
+    cloud: () => getGenerativeModel(ai, { mode: InferenceMode.ONLY_IN_CLOUD, inCloudParams: config.inCloudParams }),
+    prompt: buildExplainPrompt(input),
+    parse: validateEnglishCard,
+  });
+  return { content: value, source, promptVersion: ENGLISH_PROMPT_VERSION };
 }

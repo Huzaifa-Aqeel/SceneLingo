@@ -21,7 +21,7 @@ export default function LanguageCard({ uid }: { uid: string }) {
 
   const where = (l: Language) => {
     if (l.code === "en") return "";
-    return probing ? "checking…" : whereItRuns(routeFor(l.code, support, promptApiPresent));
+    return probing ? "checking…" : whereItRuns(routeFor(l.code, support, promptApiPresent), support?.[l.code]);
   };
 
   async function choose(code: string) {
@@ -56,7 +56,7 @@ export default function LanguageCard({ uid }: { uid: string }) {
         </div>
         <p id="language-help" className="text-sm text-muted-foreground" aria-live="polite">
           {saved && "Saved. "}
-          {lang && route === "PREFER_ON_DEVICE" && `${lang.name} is translated on this device.`}
+          {lang && route === "PREFER_ON_DEVICE" && (support?.[current] === "available" ? `${lang.name} is translated on this device.` : `${lang.name} can be translated on this device. Until the on-device model is downloaded, it is translated in the cloud.`)}
           {lang && route === "ONLY_IN_CLOUD" && `${lang.name} is translated in the cloud.`}
           {lang && route === "NONE" && "No translation needed."}
         </p>

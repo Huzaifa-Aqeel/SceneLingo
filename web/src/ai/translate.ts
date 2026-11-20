@@ -5,7 +5,8 @@ import type { FirebaseApp } from "firebase/app";
 import { findLanguage } from "@/languages";
 import { translationOutputSchema, type TranslationContent } from "@/lib/schemas";
 import type { Route } from "./support";
-import { CLOUD_MODEL, getAi, getCloudModel, sourceOf } from "./client";
+import { CLOUD_MODEL, getAi, getCloudModel } from "./client";
+import { askHybrid } from "./hybrid";
 
 export const TRANSLATION_PROMPT_VERSION = "1.0";
 export interface CardContext {
@@ -91,15 +92,16 @@ export interface TranslationResult extends TranslationContent {
   promptVersion: string;
 }
 
-// Runs one translation. `inferenceSource` is what the SDK reports, never what we expected.
+// Runs one translation, only when the learner asks for it. `inferenceSource` is what actually answered
+// (the SDK's report, or the cloud when the device failed), never what we expected.
 export async function translateCard({ app, card, languageCode, route }: { app: FirebaseApp; card: CardContext; languageCode: string; route: Route }): Promise<TranslationResult> {
-  const model = getGenerativeModel(getAi(app), buildModelConfig({ route, languageCode, cloudModel: getCloudModel() }));
-  const result = await model.generateContent(buildPrompt({ card, languageCode }));
-  const content = validateTranslation(result.response.text());
-  return {
-    ...content,
-    languageCode,
-    inferenceSource: sourceOf(result.response.inferenceSource),
-    promptVersion: TRANSLATION_PROMPT_VERSION,
-  };
+  const config = buildModelConfig({ route, languageCode, cloudModel: getCloudModel() });
+  const ai = getAi(app);
+  const { value, source } = await askHybrid({
+    hybrid: getGenerativeModel(ai, config),
+    cloud: () => getGenerativeModel(ai, { mode: InferenceMode.ONLY_IN_CLOUD, inCloudParams: config.inCloudParams }),
+    prompt: buildPrompt({ card, languageCode }),
+    parse: validateTranslation,
+  });
+  return { ...value, languageCode, inferenceSource: source, promptVersion: TRANSLATION_PROMPT_VERSION };
 }

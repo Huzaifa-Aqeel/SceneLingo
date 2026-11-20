@@ -859,10 +859,22 @@ The English learning-card request shall use Firebase AI Logic `PREFER_ON_DEVICE`
 - The local model download starts only after a user interaction (pressing **Explain**) and never blocks the learner: while the model is not ready, the request is answered by the cloud.
 - On browsers where the SDK cannot use the Prompt API (for example mobile browsers), the app either relies on the SDK's cloud fallback or explicitly selects `ONLY_IN_CLOUD`, whichever the SDK requires; this must be verified on a phone browser.
 
-### FR-AI-005 — On-device model readiness and fallback
+### FR-AI-005 — On-device model readiness, consent, and fallback
 
 **Priority:** Must have  
-The web application shall use Firebase JavaScript SDK v12.5.0 or later for Web hybrid inference. The SDK uses the Chrome Prompt API when the device model is available, starts the model download on first use, and answers from the cloud while the model is not ready or the local request fails. The learner is never blocked waiting for a download, and the card always shows where it was produced.
+The web application shall use Firebase JavaScript SDK v12.5.0 or later for Web hybrid inference. The SDK uses the Chrome Prompt API when the on-device model is ready, and answers from the cloud whenever it is not (not downloaded, still downloading, unsupported language or device, or no Prompt API in the browser). The learner is never blocked waiting for a download, and the card always shows where it was produced.
+
+**Consent and download:**
+- The model is several GB, so it is downloaded only after the learner says yes. The app never starts the download by itself.
+- After a card is generated, and only if this device could run the model but does not have it, a one-line prompt inside the card asks "Make cards faster and private on this device?" with **Download** and **Not now**. It never appears on phones, on unsupported devices, or where the model is already installed.
+- **Download** starts the download from that click. While it runs the prompt shows progress, cards keep working in the cloud, and when it finishes the prompt says later cards run on this device. The session Chrome opens for the download is released straight away.
+- **Not now** hides the prompt for good on this device (the choice is stored on the device, not in the account).
+- Profile has an **On-device model** section, shown only where the model could run, so a learner who chose Not now (or who skipped the prompt) can download later. It shows the state: download, downloading, or ready.
+- Where the translation language is supported on-device but the model is not downloaded yet, the language picker says "On this device once downloaded" and the cloud answers meanwhile.
+
+**Memory:** The model is loaded into memory only when the learner presses Explain or Translate (the SDK opens a session then). Starting the app, opening pages, and checking availability load nothing.
+
+**Failure fallback:** If the on-device model reports ready and then fails while running, or its answer is not usable (invalid card or translation), the request is repeated once in the cloud and the card is labelled Cloud. Errors returned by the cloud service itself are not repeated.
 
 **Acceptance criteria:**
 - Explain works whether or not the browser supports the Prompt API (phones, other browsers, unsupported hardware): it falls back to the cloud.
