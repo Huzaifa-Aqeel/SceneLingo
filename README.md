@@ -20,6 +20,29 @@ You need desktop Chrome.
 
 On-device results need Chrome 139 or newer on a computer that can run Chrome's built-in Gemini Nano: roughly 22 GB of free disk and either a GPU with more than 4 GB of video memory or 16 GB of RAM with 4 or more cores. Enable `chrome://flags/#prompt-api-for-gemini-nano`, then check `chrome://on-device-internals`. Without it, everything still works through the cloud and the badge says **Cloud**. The badge always reports the source the SDK actually used.
 
+You download the model yourself from **Profile → On-device model** (a few GB; Explore only shows a one-time pointer to it). Until it is installed, everything runs in the cloud. If the on-device model fails while running, or gives an answer the app can't use, the request is repeated once in the cloud and the badge says **Cloud**.
+
+#### Testing status of the on-device path (please read)
+
+**The real on-device model has not run end to end on the author's computer.** Chrome's model download never started delivering data there, so no card in this project has been produced by the real Gemini Nano. Everything else about the hybrid path is built and tested with a stand-in for Chrome's model, and the cloud path is tested against the real cloud model. This is what was tried and what was seen, on 21 Nov 2026 (Linux, Chrome 149.0.7827.53, then updated to 158.0.8127.36):
+
+| What was checked | Result |
+|---|---|
+| Hardware | Qualifies. Chrome's own page reports "device capable: true", 5207 MiB of video memory (3000 MiB required), about 298 GB free disk (20 GB required), on external power, feature flag, enterprise policy and user setting all enabled. |
+| Network | Not the cause. Google's Chrome installer downloaded from the same machine at about 9 MB/s over HTTP and HTTPS, the component download servers answered, the Wi-Fi is not metered (NetworkManager), and Chrome fetched its other optimization-guide models (a few hundred MB) into a clean profile without trouble. |
+| `LanguageModel.availability()` | Returned `"downloading"` for 30+ minutes, on both Chrome versions, including after resetting Chrome's on-device state and in a clean profile. |
+| `LanguageModel.create({ monitor })` from the console | Never resolved or rejected, and no `downloadprogress` event (not even `loaded: 0`) was ever emitted. |
+| Chrome 149, `chrome://on-device-internals` | Model state "Model Installer Not Registered For Unknown Reason", later "Install Not Complete", with "is already installing: false". Broker State listed the Base Model as "Foreground Installing", version N/A, **Error: None**. The Uninstall button did nothing and Event Logs stayed empty. |
+| Chrome 158, `chrome://on-device-internals` | Every criterion true. All assets "Not Installed, 0%, Error: None" and `prompt_api` "Pending Assets". After a console `create()` call, `nano_v3_gpu_component` moved to "Foreground Installing" and stayed at 0%. |
+| On disk and on the wire | The model folders stayed at 0 bytes for 30+ minutes, and the machine received only 1 to 10 KiB/s while Chrome held one idle connection open to Google's download servers. |
+| App behaviour meanwhile | Correct: the Profile card said "Chrome is downloading the model in the background" because that is what Chrome reported, and every card and translation was served by the cloud and labelled **Cloud**. |
+
+**What this may mean (not confirmed).** Chrome accepts the device and registers the install, but never receives the model from Google's delivery service for this client. That points at Chrome or Google's side (staged rollout or targeting of the model component, an installer bug, or the university network treating the download differently), not at the app and not at the hardware. None of this could be proven from the outside: Chrome gives a web page only four status words and no reason, and its internals page reported "Error: None" throughout. For comparison, Chrome does report some failures: in one test it rejected `create()` with "NotSupportedError: The device does not have enough space for downloading the on-device model" (that test used a RAM-backed temporary profile folder, which was the author's mistake), and the app shows such messages in the Profile card.
+
+**What was tested instead.** Unit tests and a browser journey run against a stand-in for Chrome's on-device model, covering: the Download flow and its states (Starting, a real percentage, Chrome's own background download, Ready, failure with Chrome's message), the model loading only when Explain or Translate is pressed, per-language routing, the cloud retry when the local model crashes or returns an unusable answer, and the source badge. See `web/test/device.test.ts` and `extension/e2e/device-e2e.mjs`.
+
+**To see it for real,** use a desktop Chrome where the model installs (check with `await LanguageModel.availability({expectedInputs:[{type:"text",languages:["en"]}],expectedOutputs:[{type:"text",languages:["en"]}]})` in the console: you want `"available"`), press **Download** in Profile if it is `"downloadable"`, then press **Explain** on a saved subtitle. The card's badge should read **On your device**. On any other browser or device, the same steps give **Cloud**.
+
 ## How it fits together
 
 ```
@@ -67,7 +90,6 @@ You need Node 22+, the Firebase CLI, and a Firebase project with: Email/Password
    npm run package      # production build in extension/dist-prod, zipped to release/
    ```
    The web app build copies `release/scenelingo-extension.zip` into the site, so run `npm run package` before `npm run build` in `web/`. The icons come from `extension/tools/icon.svg` (`node tools/make-icons.mjs` re-renders them).
-   ```
    ```
    The extension trusts exactly one website origin, `https://<project>.web.app` by default. To use another domain, set `SCENELINGO_WEB_ORIGIN` in `.env.local` before building. Its ID is fixed by the public key in `extension/key/`, so the web app can always find it. The matching private key is not in this repository.
 
