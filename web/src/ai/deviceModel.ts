@@ -1,5 +1,5 @@
-// The on-device model (Chrome's Gemini Nano): is it here, can it be downloaded, and downloading it with the
-// learner's consent. Nothing in this file loads the model into memory except the one download the learner
+// The on-device model (Chrome's Gemini Nano): is it here, can it be downloaded, and downloading it when the
+// learner presses Download in Profile (the only place it is offered). Nothing in this file loads the model into memory except the one download the learner
 // asks for, and that session is released as soon as the download finishes. Checking availability is cheap
 // and loads nothing. The model is only loaded into memory by the SDK when the learner presses Explain or Translate.
 import { useEffect, useSyncExternalStore } from "react";
@@ -44,17 +44,12 @@ export async function downloadModel(api: ModelApi, onProgress: (fraction: number
   session.destroy?.();
 }
 
-// ---------------------------------------------------------------- "Not now", remembered on this device only
-const KEY = "sceneLingo.deviceModel.declined";
-const readDeclined = (): boolean => { try { return localStorage.getItem(KEY) === "1"; } catch { return false; } };
-const writeDeclined = (v: boolean) => { try { v ? localStorage.setItem(KEY, "1") : localStorage.removeItem(KEY); } catch { /* private mode: ask again next time */ } };
-
 // ---------------------------------------------------------------- shared state, so a download keeps going when the learner changes page
 // `ours` = this page started the download (so it can report a percentage). A download that Chrome runs on its
 // own, or one left over from before a reload, has no percentage.
-interface State { phase: Phase; progress: number | null; failed: boolean; justReady: boolean; declined: boolean; ours: boolean; stalled: boolean }
-const fresh = (): State => ({ phase: "checking", progress: null, failed: false, justReady: false, declined: false, ours: false, stalled: false });
-let state: State = { ...fresh(), declined: readDeclined() };
+interface State { phase: Phase; progress: number | null; failed: boolean; ours: boolean; stalled: boolean }
+const fresh = (): State => ({ phase: "checking", progress: null, failed: false, ours: false, stalled: false });
+let state: State = fresh();
 let startedAt = 0;      // when our download was requested
 let lastProgressAt = 0; // when it last moved
 const listeners = new Set<() => void>();
@@ -74,7 +69,7 @@ export async function refresh(): Promise<void> {
   const phase = lm ? await checkModel(lm) : "none";
   if (phase === "downloading") return set({ phase });
   if (state.ours && Date.now() - startedAt < GRACE_MS) return; // too early to say our request was dropped
-  set({ phase, progress: null, ours: false, stalled: false, justReady: state.justReady || (state.ours && phase === "ready") });
+  set({ phase, progress: null, ours: false, stalled: false });
 }
 
 export function checkStall(now = Date.now()): void {
@@ -85,16 +80,15 @@ export function checkStall(now = Date.now()): void {
 export function startDownload(): void {
   const lm = api();
   if (!lm || state.phase !== "can-download") return;
-  writeDeclined(false);
   startedAt = lastProgressAt = Date.now();
-  set({ phase: "downloading", progress: null, ours: true, stalled: false, failed: false, justReady: false, declined: false });
+  set({ phase: "downloading", progress: null, ours: true, stalled: false, failed: false });
   const mine = startedAt;
   // The first await inside downloadModel is the create() call, so it runs inside the click.
   downloadModel(lm, (p) => { if (mine === startedAt) { lastProgressAt = Date.now(); set({ progress: p, stalled: false }); } })
     .then(async () => {
       if (mine !== startedAt) return; // an older request that was already given up on
       const phase = await checkModel(lm);
-      set({ phase, progress: null, ours: false, stalled: false, justReady: phase === "ready", failed: phase !== "ready" });
+      set({ phase, progress: null, ours: false, stalled: false, failed: phase !== "ready" });
     })
     .catch(async () => {
       if (mine !== startedAt) return;
@@ -102,29 +96,25 @@ export function startDownload(): void {
     });
 }
 
-export function decline(): void {
-  writeDeclined(true);
-  set({ declined: true });
-}
-
 export function useDeviceModel() {
   const s = useSyncExternalStore((l) => { listeners.add(l); return () => { listeners.delete(l); }; }, () => state);
   // A quick availability check (loads nothing), repeated whenever the learner comes back to the tab.
   useEffect(() => {
     void refresh();
-    const again = () => { if (document.visibilityState === "visible") void refresh(); };
+    const again = () => { if (document.visibilityState === "visible") { checkStall(); void refresh(); } };
     document.addEventListener("visibilitychange", again);
     window.addEventListener("focus", again);
     return () => { document.removeEventListener("visibilitychange", again); window.removeEventListener("focus", again); };
   }, []);
-  // While a download is running: look for a stall every 5 s, and ask Chrome again every 15 s.
+  // While a download is running and the tab is in view: look for a stall every 5 s, and ask Chrome again every 15 s.
+  // A hidden tab does nothing; coming back runs both checks at once.
   useEffect(() => {
     if (s.phase !== "downloading") return;
     let n = 0;
-    const t = setInterval(() => { checkStall(); if (++n % 3 === 0) void refresh(); }, 5000);
+    const t = setInterval(() => { if (document.visibilityState !== "visible") return; checkStall(); if (++n % 3 === 0) void refresh(); }, 5000);
     return () => clearInterval(t);
   }, [s.phase]);
-  return { ...s, start: startDownload, decline, recheck: refresh };
+  return { ...s, start: startDownload, recheck: refresh };
 }
 
 // Test hooks: read the shared state, and reset it between tests.

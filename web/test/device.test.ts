@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AIError, AIErrorCode } from "firebase/ai";
 import { askHybrid, type Askable } from "@/ai/hybrid";
-import { _resetDeviceModel, _state, checkModel, checkStall, decline, downloadModel, isStalled, phaseFrom, refresh, startDownload, STALL_MS } from "@/ai/deviceModel";
+import { _resetDeviceModel, _state, checkModel, checkStall, downloadModel, isStalled, phaseFrom, refresh, startDownload, STALL_MS } from "@/ai/deviceModel";
 
 const reply = (text: string, inferenceSource?: string): Askable => ({ generateContent: async () => ({ response: { text: () => text, inferenceSource } }) });
 const failing = (error: unknown): Askable => ({ generateContent: async () => { throw error; } });
@@ -83,10 +83,6 @@ describe("on-device model state", () => {
     expect(create).toHaveBeenCalledTimes(1); // called synchronously, inside the click
     await vi.waitFor(() => expect(destroy).toHaveBeenCalled()); // the session is released once the download is done
   });
-  it("remembers Not now without throwing where storage is unavailable", () => {
-    expect(() => decline()).not.toThrow();
-  });
-
   it("calls a download stalled only when it is ours and has not moved for a while", () => {
     expect(isStalled(STALL_MS + 1, 0, true, "downloading")).toBe(true);
     expect(isStalled(STALL_MS - 1, 0, true, "downloading")).toBe(false);
@@ -117,11 +113,11 @@ describe("on-device model state", () => {
     await refresh();
     expect(_state()).toMatchObject({ phase: "downloading", ours: false, progress: null });
   });
-  it("turns a finished download into ready, and tells the learner once", async () => {
+  it("turns a finished download into ready", async () => {
     vi.stubGlobal("LanguageModel", { availability: async () => "available", create: vi.fn() });
     _resetDeviceModel({ phase: "downloading", ours: true, progress: 0.9 }, { startedAt: Date.now() - 60_000 });
     await refresh();
-    expect(_state()).toMatchObject({ phase: "ready", ours: false, justReady: true });
+    expect(_state()).toMatchObject({ phase: "ready", ours: false });
   });
   it("flags a stalled download once, and clears it when progress returns", () => {
     _resetDeviceModel({ phase: "downloading", ours: true }, { startedAt: 1000, lastProgressAt: 1000 });

@@ -17,7 +17,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { OnDevicePrompt } from "@/components/OnDevicePrompt";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { saveCard } from "@/data/cards";
@@ -263,8 +262,6 @@ export default function Explore({ user }: { user: User }) {
             {!nativeLanguage && (
               <p className="text-sm text-muted-foreground">Want this in your own language? <Link className="text-primary underline underline-offset-2" to="/profile">Choose a language</Link>.</p>
             )}
-
-            <OnDevicePrompt />
 
             <div className="flex flex-wrap items-center gap-3 border-t pt-4">
               {saved ? (

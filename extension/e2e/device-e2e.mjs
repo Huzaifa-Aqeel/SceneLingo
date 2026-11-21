@@ -113,23 +113,17 @@ try {
   check("signed in", await until(async () => /Inbox/.test(await text()), 25000), await text());
   check("starting the app and opening pages loads no on-device model", (await stub("creates")) === null);
 
-  // ---- first card: cloud, because the model isn't downloaded; the prompt is offered once
+  // ---- first card: cloud, because the model isn't downloaded; Explore says nothing about the on-device model
   await explainOnce();
   await shot("01-first-card");
   check("the first card came from the cloud (the model isn't downloaded yet)", /Cloud/.test(await text()) && aiCalls.card === 1, `${aiCalls.card}`);
-  check("a quiet prompt asks to download the on-device model, with Download and Not now", (await page.getByText("Make cards faster and private on this device?").count()) === 1 && (await page.getByRole("button", { name: "Download" }).count()) === 1 && (await page.getByRole("button", { name: "Not now" }).count()) === 1);
-  check("showing the prompt and the card loaded no model", (await stub("creates")) === null);
+  check("Explore shows no on-device setup under the card", (await page.getByText(/on-device model|on this device\?/i).count()) === 0 && (await page.getByRole("button", { name: /Download|Not now/ }).count()) === 0);
+  check("showing the card loaded no model", (await stub("creates")) === null);
 
-  // ---- Not now: it goes away and does not come back
-  await page.getByRole("button", { name: "Not now" }).click();
-  check("Not now removes the prompt", await until(async () => (await page.getByText("Make cards faster and private").count()) === 0, 3000));
-  await explainOnce();
-  check("it doesn't come back on the next card", (await page.getByText("Make cards faster and private").count()) === 0 && aiCalls.card === 2);
-
-  // ---- later, from Profile
+  // ---- the one place to set it up: Profile
   await page.getByRole("link", { name: "Profile" }).click();
   await page.waitForSelector("#on-device", { timeout: 10000 });
-  check("Profile offers the download for someone who said Not now", /On-device model/.test(await text("#on-device")) && (await page.locator("#on-device").getByRole("button", { name: "Download" }).count()) === 1);
+  check("Profile offers the download", /On-device model/.test(await text("#on-device")) && (await page.locator("#on-device").getByRole("button", { name: "Download" }).count()) === 1);
   await shot("02-profile-offer");
   await page.locator("#on-device").getByRole("button", { name: "Download" }).click();
   check("the download starts with a plain 'Starting…', not a fake 0%", /Starting…/.test(await text("#on-device")) && !/0%/.test(await text("#on-device")), await text("#on-device"));
@@ -141,13 +135,13 @@ try {
   // ---- now the card runs on the device
   await explainOnce();
   await shot("04-on-device-card");
-  check("the next card runs on the device and no cloud request is made", /On your device/.test(await text()) && aiCalls.card === 2, `${aiCalls.card}`);
+  check("the next card runs on the device and no cloud request is made", /On your device/.test(await text()) && aiCalls.card === 1, `${aiCalls.card}`);
   check("the model was loaded only when Explain was pressed (one more session)", (await stub("creates")) === "2", await stub("creates"));
 
   // ---- the local model crashes while running -> cloud
   await page.evaluate(() => sessionStorage.setItem("failPrompt", "1"));
   await explainOnce();
-  check("when the local model fails while running, the card still arrives, from the cloud", /Cloud/.test(await text()) && !/On your device/.test(await text()) && aiCalls.card === 3, `${aiCalls.card}`);
+  check("when the local model fails while running, the card still arrives, from the cloud", /Cloud/.test(await text()) && !/On your device/.test(await text()) && aiCalls.card === 2, `${aiCalls.card}`);
   await page.evaluate(() => sessionStorage.removeItem("failPrompt"));
 
   // ---- the local model gives an unusable translation -> cloud
@@ -158,7 +152,7 @@ try {
   await shot("05-translation-fallback");
 
   // ---- a download Chrome drops: the spinner clears by itself (no reload)
-  await page.evaluate(() => { sessionStorage.setItem("state", "downloadable"); sessionStorage.setItem("hang", "1"); localStorage.removeItem("sceneLingo.deviceModel.declined"); });
+  await page.evaluate(() => { sessionStorage.setItem("state", "downloadable"); sessionStorage.setItem("hang", "1"); });
   await page.goto(`${SITE}/profile`);
   await page.waitForSelector("#on-device");
   await page.locator("#on-device").getByRole("button", { name: "Download" }).click();
@@ -178,15 +172,6 @@ try {
   await page.evaluate(() => sessionStorage.setItem("state", "available"));
   await page.locator("#on-device").getByRole("button", { name: "Check again" }).click();
   check("Check again notices it is finished", await until(async () => /Ready/.test(await text("#on-device")), 4000), await text("#on-device"));
-
-  // ---- pressing Download under a card: the strip goes away, a short note shows once, and Explore carries no spinner
-  await page.evaluate(() => { sessionStorage.setItem("state", "downloadable"); localStorage.removeItem("sceneLingo.deviceModel.declined"); });
-  await explainOnce();
-  check("the question is offered again for a learner who hasn't answered", (await page.getByText("Make cards faster and private on this device?").count()) === 1);
-  await page.getByRole("button", { name: "Download" }).click();
-  check("pressing Download replaces the question with one short note", await until(async () => (await page.getByText("Downloading in the background").count()) === 1 && (await page.getByText("Make cards faster and private").count()) === 0, 3000));
-  check("Explore shows no spinner for the download", (await page.locator("main .animate-spin").count()) === 0);
-  check("the note goes away by itself", await until(async () => (await page.getByText("Downloading in the background").count()) === 0, 9000));
 
   check("no page errors during the whole journey", problems.length === 0, problems.slice(0, 3).join(" | "));
 } catch (e) {
