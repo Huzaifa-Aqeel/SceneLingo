@@ -52,6 +52,7 @@ await page.addInitScript(() => {
       set("creates", Number(get("creates", 0)) + 1);
       if (get("state", "downloadable") === "downloadable") {
         set("state", "downloading");
+        if (get("hang", "0") === "1") await new Promise(() => {}); // a download that never reports anything
         const m = new EventTarget(); o?.monitor?.(m);
         for (const p of [0.25, 0.6, 1]) { await new Promise((r) => setTimeout(r, 500)); m.dispatchEvent(Object.assign(new Event("downloadprogress"), { loaded: p })); }
         set("state", "available");
@@ -131,7 +132,8 @@ try {
   check("Profile offers the download for someone who said Not now", /On-device model/.test(await text("#on-device")) && (await page.locator("#on-device").getByRole("button", { name: "Download" }).count()) === 1);
   await shot("02-profile-offer");
   await page.locator("#on-device").getByRole("button", { name: "Download" }).click();
-  check("the download shows progress", await until(async () => /Downloading/.test(await text("#on-device")), 3000), await text("#on-device"));
+  check("the download starts with a plain 'Starting…', not a fake 0%", /Starting…/.test(await text("#on-device")) && !/0%/.test(await text("#on-device")), await text("#on-device"));
+  check("the download shows a real percentage once Chrome reports one", await until(async () => /Downloading… \d+%/.test(await text("#on-device")), 3000), await text("#on-device"));
   await shot("03-profile-downloading");
   check("it finishes and says it is ready", await until(async () => /Ready/.test(await text("#on-device")), 8000), await text("#on-device"));
   check("exactly one download was started, and its session was released", (await stub("creates")) === "1" && (await stub("destroyed")) === "1", `${await stub("creates")} / ${await stub("destroyed")}`);
@@ -154,6 +156,37 @@ try {
   await page.getByRole("button", { name: /Translate to Spanish/ }).click();
   check("an unusable local translation is replaced by the cloud's, labelled Cloud", await until(async () => (await page.locator('[lang="es"]').filter({ hasText: "adelantarnos" }).count()) > 0 && aiCalls.translate === 1, 10000), `${aiCalls.translate}`);
   await shot("05-translation-fallback");
+
+  // ---- a download Chrome drops: the spinner clears by itself (no reload)
+  await page.evaluate(() => { sessionStorage.setItem("state", "downloadable"); sessionStorage.setItem("hang", "1"); localStorage.removeItem("sceneLingo.deviceModel.declined"); });
+  await page.goto(`${SITE}/profile`);
+  await page.waitForSelector("#on-device");
+  await page.locator("#on-device").getByRole("button", { name: "Download" }).click();
+  check("a download that reports nothing shows 'Starting…' (and is ours)", await until(async () => /Starting…/.test(await text("#on-device")), 3000), await text("#on-device"));
+  await page.evaluate(() => sessionStorage.setItem("state", "downloadable")); // Chrome dropped it (for example, the learner turned the feature off)
+  await sleep(8500); // past the short grace period after pressing Download
+  await page.evaluate(() => window.dispatchEvent(new Event("focus"))); // coming back to the tab
+  check("when Chrome drops it, the spinner clears and Download comes back, without a reload", await until(async () => (await page.locator("#on-device").getByRole("button", { name: "Download" }).count()) === 1 && !/Starting…|Downloading/.test(await text("#on-device")), 5000), await text("#on-device"));
+  await shot("06-dropped-download");
+
+  // ---- a download Chrome runs on its own: plain words, no spinner, and it finishes without a reload
+  await page.evaluate(() => { sessionStorage.setItem("state", "downloading"); sessionStorage.removeItem("hang"); });
+  await page.goto(`${SITE}/profile`);
+  await page.waitForSelector("#on-device");
+  check("a download Chrome runs by itself says so, with no spinner and no percentage", /Chrome is downloading the model in the background/.test(await text("#on-device")) && (await page.locator("#on-device .animate-spin").count()) === 0 && !/%/.test(await text("#on-device")), await text("#on-device"));
+  await shot("07-chromes-own-download");
+  await page.evaluate(() => sessionStorage.setItem("state", "available"));
+  await page.locator("#on-device").getByRole("button", { name: "Check again" }).click();
+  check("Check again notices it is finished", await until(async () => /Ready/.test(await text("#on-device")), 4000), await text("#on-device"));
+
+  // ---- pressing Download under a card: the strip goes away, a short note shows once, and Explore carries no spinner
+  await page.evaluate(() => { sessionStorage.setItem("state", "downloadable"); localStorage.removeItem("sceneLingo.deviceModel.declined"); });
+  await explainOnce();
+  check("the question is offered again for a learner who hasn't answered", (await page.getByText("Make cards faster and private on this device?").count()) === 1);
+  await page.getByRole("button", { name: "Download" }).click();
+  check("pressing Download replaces the question with one short note", await until(async () => (await page.getByText("Downloading in the background").count()) === 1 && (await page.getByText("Make cards faster and private").count()) === 0, 3000));
+  check("Explore shows no spinner for the download", (await page.locator("main .animate-spin").count()) === 0);
+  check("the note goes away by itself", await until(async () => (await page.getByText("Downloading in the background").count()) === 0, 9000));
 
   check("no page errors during the whole journey", problems.length === 0, problems.slice(0, 3).join(" | "));
 } catch (e) {

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AIError, AIErrorCode } from "firebase/ai";
 import { askHybrid, type Askable } from "@/ai/hybrid";
-import { _resetDeviceModel, checkModel, decline, downloadModel, phaseFrom, refresh, startDownload } from "@/ai/deviceModel";
+import { _resetDeviceModel, _state, checkModel, checkStall, decline, downloadModel, isStalled, phaseFrom, refresh, startDownload, STALL_MS } from "@/ai/deviceModel";
 
 const reply = (text: string, inferenceSource?: string): Askable => ({ generateContent: async () => ({ response: { text: () => text, inferenceSource } }) });
 const failing = (error: unknown): Askable => ({ generateContent: async () => { throw error; } });
@@ -85,5 +85,50 @@ describe("on-device model state", () => {
   });
   it("remembers Not now without throwing where storage is unavailable", () => {
     expect(() => decline()).not.toThrow();
+  });
+
+  it("calls a download stalled only when it is ours and has not moved for a while", () => {
+    expect(isStalled(STALL_MS + 1, 0, true, "downloading")).toBe(true);
+    expect(isStalled(STALL_MS - 1, 0, true, "downloading")).toBe(false);
+    expect(isStalled(STALL_MS + 1, 0, false, "downloading")).toBe(false); // Chrome's own download has no progress to watch
+    expect(isStalled(STALL_MS + 1, 0, true, "ready")).toBe(false);
+  });
+  it("lets go of its own download as soon as Chrome says it is no longer running", async () => {
+    vi.stubGlobal("LanguageModel", { availability: async () => "downloadable", create: vi.fn() });
+    _resetDeviceModel({ phase: "downloading", ours: true, progress: 0.3 }, { startedAt: Date.now() - 60_000, lastProgressAt: Date.now() - 60_000 });
+    await refresh();
+    expect(_state()).toMatchObject({ phase: "can-download", ours: false, progress: null, stalled: false });
+  });
+  it("does not mistake the first moments after pressing Download for a dropped download", async () => {
+    vi.stubGlobal("LanguageModel", { availability: async () => "downloadable", create: vi.fn() });
+    _resetDeviceModel({ phase: "downloading", ours: true, progress: null }, { startedAt: Date.now(), lastProgressAt: Date.now() });
+    await refresh();
+    expect(_state()).toMatchObject({ phase: "downloading", ours: true });
+  });
+  it("keeps a running download as it is while Chrome says it is downloading", async () => {
+    vi.stubGlobal("LanguageModel", { availability: async () => "downloading", create: vi.fn() });
+    _resetDeviceModel({ phase: "downloading", ours: true, progress: 0.4 }, { startedAt: Date.now() - 60_000, lastProgressAt: Date.now() });
+    await refresh();
+    expect(_state()).toMatchObject({ phase: "downloading", ours: true, progress: 0.4 });
+  });
+  it("shows a download Chrome runs on its own as a plain 'downloading', without a percentage", async () => {
+    vi.stubGlobal("LanguageModel", { availability: async () => "downloading", create: vi.fn() });
+    _resetDeviceModel({ phase: "checking" });
+    await refresh();
+    expect(_state()).toMatchObject({ phase: "downloading", ours: false, progress: null });
+  });
+  it("turns a finished download into ready, and tells the learner once", async () => {
+    vi.stubGlobal("LanguageModel", { availability: async () => "available", create: vi.fn() });
+    _resetDeviceModel({ phase: "downloading", ours: true, progress: 0.9 }, { startedAt: Date.now() - 60_000 });
+    await refresh();
+    expect(_state()).toMatchObject({ phase: "ready", ours: false, justReady: true });
+  });
+  it("flags a stalled download once, and clears it when progress returns", () => {
+    _resetDeviceModel({ phase: "downloading", ours: true }, { startedAt: 1000, lastProgressAt: 1000 });
+    checkStall(1000 + STALL_MS + 1);
+    expect(_state().stalled).toBe(true);
+    _resetDeviceModel({ phase: "downloading", ours: true }, { startedAt: 1000, lastProgressAt: 1000 });
+    checkStall(1000 + 5000);
+    expect(_state().stalled).toBe(false);
   });
 });

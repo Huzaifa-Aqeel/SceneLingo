@@ -50,30 +50,56 @@ const readDeclined = (): boolean => { try { return localStorage.getItem(KEY) ===
 const writeDeclined = (v: boolean) => { try { v ? localStorage.setItem(KEY, "1") : localStorage.removeItem(KEY); } catch { /* private mode: ask again next time */ } };
 
 // ---------------------------------------------------------------- shared state, so a download keeps going when the learner changes page
-interface State { phase: Phase; progress: number | null; failed: boolean; justReady: boolean; declined: boolean }
-let state: State = { phase: "checking", progress: null, failed: false, justReady: false, declined: readDeclined() };
+// `ours` = this page started the download (so it can report a percentage). A download that Chrome runs on its
+// own, or one left over from before a reload, has no percentage.
+interface State { phase: Phase; progress: number | null; failed: boolean; justReady: boolean; declined: boolean; ours: boolean; stalled: boolean }
+const fresh = (): State => ({ phase: "checking", progress: null, failed: false, justReady: false, declined: false, ours: false, stalled: false });
+let state: State = { ...fresh(), declined: readDeclined() };
+let startedAt = 0;      // when our download was requested
+let lastProgressAt = 0; // when it last moved
 const listeners = new Set<() => void>();
 const set = (patch: Partial<State>) => { state = { ...state, ...patch }; listeners.forEach((l) => l()); };
 const api = (): ModelApi | null => (hasPromptApi() ? ((globalThis as unknown as { LanguageModel: ModelApi }).LanguageModel) : null);
 
+export const STALL_MS = 30_000; // no movement for this long: stop the spinner and say what may be wrong
+const GRACE_MS = 8_000;         // Chrome needs a moment to report "downloading" after we ask
+
+export const isStalled = (now: number, lastMove: number, ours: boolean, phase: Phase): boolean =>
+  phase === "downloading" && ours && now - lastMove > STALL_MS;
+
+// Chrome's answer is the truth. Whatever this page believes about a download is dropped as soon as Chrome
+// says something different (it cancelled, the learner turned the feature off, or it finished).
 export async function refresh(): Promise<void> {
-  if (state.phase === "downloading" && state.progress !== null) return; // our own download is running
   const lm = api();
-  set({ phase: lm ? await checkModel(lm) : "none" });
+  const phase = lm ? await checkModel(lm) : "none";
+  if (phase === "downloading") return set({ phase });
+  if (state.ours && Date.now() - startedAt < GRACE_MS) return; // too early to say our request was dropped
+  set({ phase, progress: null, ours: false, stalled: false, justReady: state.justReady || (state.ours && phase === "ready") });
+}
+
+export function checkStall(now = Date.now()): void {
+  const stalled = isStalled(now, lastProgressAt, state.ours, state.phase);
+  if (stalled !== state.stalled) set({ stalled });
 }
 
 export function startDownload(): void {
   const lm = api();
   if (!lm || state.phase !== "can-download") return;
   writeDeclined(false);
-  set({ phase: "downloading", progress: 0, failed: false, justReady: false, declined: false });
+  startedAt = lastProgressAt = Date.now();
+  set({ phase: "downloading", progress: null, ours: true, stalled: false, failed: false, justReady: false, declined: false });
+  const mine = startedAt;
   // The first await inside downloadModel is the create() call, so it runs inside the click.
-  downloadModel(lm, (p) => set({ progress: p }))
+  downloadModel(lm, (p) => { if (mine === startedAt) { lastProgressAt = Date.now(); set({ progress: p, stalled: false }); } })
     .then(async () => {
+      if (mine !== startedAt) return; // an older request that was already given up on
       const phase = await checkModel(lm);
-      set({ phase, progress: null, justReady: phase === "ready", failed: phase !== "ready" });
+      set({ phase, progress: null, ours: false, stalled: false, justReady: phase === "ready", failed: phase !== "ready" });
     })
-    .catch(async () => set({ phase: await checkModel(lm), progress: null, failed: true }));
+    .catch(async () => {
+      if (mine !== startedAt) return;
+      set({ phase: await checkModel(lm), progress: null, ours: false, stalled: false, failed: true });
+    });
 }
 
 export function decline(): void {
@@ -83,11 +109,28 @@ export function decline(): void {
 
 export function useDeviceModel() {
   const s = useSyncExternalStore((l) => { listeners.add(l); return () => { listeners.delete(l); }; }, () => state);
-  useEffect(() => { void refresh(); }, []); // a quick availability check, nothing is loaded
-  return { ...s, start: startDownload, decline };
+  // A quick availability check (loads nothing), repeated whenever the learner comes back to the tab.
+  useEffect(() => {
+    void refresh();
+    const again = () => { if (document.visibilityState === "visible") void refresh(); };
+    document.addEventListener("visibilitychange", again);
+    window.addEventListener("focus", again);
+    return () => { document.removeEventListener("visibilitychange", again); window.removeEventListener("focus", again); };
+  }, []);
+  // While a download is running: look for a stall every 5 s, and ask Chrome again every 15 s.
+  useEffect(() => {
+    if (s.phase !== "downloading") return;
+    let n = 0;
+    const t = setInterval(() => { checkStall(); if (++n % 3 === 0) void refresh(); }, 5000);
+    return () => clearInterval(t);
+  }, [s.phase]);
+  return { ...s, start: startDownload, decline, recheck: refresh };
 }
 
-// Test hook: resets the shared state between tests.
-export function _resetDeviceModel(patch: Partial<State> = {}) {
-  state = { phase: "checking", progress: null, failed: false, justReady: false, declined: false, ...patch };
+// Test hooks: read the shared state, and reset it between tests.
+export const _state = (): Readonly<State> => state;
+export function _resetDeviceModel(patch: Partial<State> = {}, times: { startedAt?: number; lastProgressAt?: number } = {}) {
+  state = { ...fresh(), ...patch };
+  startedAt = times.startedAt ?? 0;
+  lastProgressAt = times.lastProgressAt ?? 0;
 }

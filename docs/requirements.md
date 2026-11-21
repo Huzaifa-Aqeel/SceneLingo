@@ -867,9 +867,14 @@ The web application shall use Firebase JavaScript SDK v12.5.0 or later for Web h
 **Consent and download:**
 - The model is several GB, so it is downloaded only after the learner says yes. The app never starts the download by itself.
 - After a card is generated, and only if this device could run the model but does not have it, a one-line prompt inside the card asks "Make cards faster and private on this device?" with **Download** and **Not now**. It never appears on phones, on unsupported devices, or where the model is already installed.
-- **Download** starts the download from that click. While it runs the prompt shows progress, cards keep working in the cloud, and when it finishes the prompt says later cards run on this device. The session Chrome opens for the download is released straight away.
+- **Download** starts the download from that click. The prompt then disappears and a short note ("Downloading in the background. Cards keep working in the cloud.") shows for a few seconds. Explore never carries a progress indicator; progress lives in Profile. If the learner is still on the page when the download finishes, a short note says later cards run on this device. The session Chrome opens for the download is released straight away.
 - **Not now** hides the prompt for good on this device (the choice is stored on the device, not in the account).
-- Profile has an **On-device model** section, shown only where the model could run, so a learner who chose Not now (or who skipped the prompt) can download later. It shows the state: download, downloading, or ready.
+- Profile has an **On-device model** section, shown only where the model could run, so a learner who chose Not now (or who skipped the prompt) can download later. It also states the requirements (several GB, 22 GB free space, an unmetered connection). It is the one place where a download is followed:
+  - Chrome's own answer is the truth. The section asks Chrome again when the learner returns to the tab and every 15 seconds while a download shows, so a download that Chrome drops, or that the learner turns off in Chrome, clears without a reload.
+  - A download started here shows "Starting…" until Chrome reports real progress, then "Downloading… 40%". It never shows a made-up 0%.
+  - If nothing moves for 30 seconds the spinner stops and the text says it is still downloading in the background, that it needs enough space and an unmetered connection, and how to stop it in Chrome (Settings, System, On-device AI), with a **Check again** button. The app cannot cancel a download Chrome is running, so it offers no Cancel button.
+  - A download Chrome runs on its own, or one left over from before a reload, shows "Chrome is downloading the model in the background" with no spinner and no percentage, and a **Check again** button.
+  - A download that did not finish shows "The download didn't finish" and **Try again**; if Chrome now says the device cannot run the model, the section is hidden.
 - Where the translation language is supported on-device but the model is not downloaded yet, the language picker says "On this device once downloaded" and the cloud answers meanwhile.
 
 **Memory:** The model is loaded into memory only when the learner presses Explain or Translate (the SDK opens a session then). Starting the app, opening pages, and checking availability load nothing.
