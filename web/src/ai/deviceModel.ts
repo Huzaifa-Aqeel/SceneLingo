@@ -47,8 +47,8 @@ export async function downloadModel(api: ModelApi, onProgress: (fraction: number
 // ---------------------------------------------------------------- shared state, so a download keeps going when the learner changes page
 // `ours` = this page started the download (so it can report a percentage). A download that Chrome runs on its
 // own, or one left over from before a reload, has no percentage.
-interface State { phase: Phase; progress: number | null; failed: boolean; ours: boolean; stalled: boolean }
-const fresh = (): State => ({ phase: "checking", progress: null, failed: false, ours: false, stalled: false });
+interface State { phase: Phase; progress: number | null; failed: boolean; error: string | null; ours: boolean; stalled: boolean }
+const fresh = (): State => ({ phase: "checking", progress: null, failed: false, error: null, ours: false, stalled: false });
 let state: State = fresh();
 let startedAt = 0;      // when our download was requested
 let lastProgressAt = 0; // when it last moved
@@ -81,7 +81,7 @@ export function startDownload(): void {
   const lm = api();
   if (!lm || state.phase !== "can-download") return;
   startedAt = lastProgressAt = Date.now();
-  set({ phase: "downloading", progress: null, ours: true, stalled: false, failed: false });
+  set({ phase: "downloading", progress: null, ours: true, stalled: false, failed: false, error: null });
   const mine = startedAt;
   // The first await inside downloadModel is the create() call, so it runs inside the click.
   downloadModel(lm, (p) => { if (mine === startedAt) { lastProgressAt = Date.now(); set({ progress: p, stalled: false }); } })
@@ -90,9 +90,11 @@ export function startDownload(): void {
       const phase = await checkModel(lm);
       set({ phase, progress: null, ours: false, stalled: false, failed: phase !== "ready" });
     })
-    .catch(async () => {
+    .catch(async (e: unknown) => {
       if (mine !== startedAt) return;
-      set({ phase: await checkModel(lm), progress: null, ours: false, stalled: false, failed: true });
+      // Chrome's own words, shortened, so the learner can see what went wrong.
+      const said = e instanceof Error ? e.message.trim().slice(0, 160) : "";
+      set({ phase: await checkModel(lm), progress: null, ours: false, stalled: false, failed: true, error: said || null });
     });
 }
 
@@ -114,7 +116,7 @@ export function useDeviceModel() {
     const t = setInterval(() => { if (document.visibilityState !== "visible") return; checkStall(); if (++n % 3 === 0) void refresh(); }, 5000);
     return () => clearInterval(t);
   }, [s.phase]);
-  return { ...s, start: startDownload, recheck: refresh };
+  return { ...s, start: startDownload };
 }
 
 // Test hooks: read the shared state, and reset it between tests.

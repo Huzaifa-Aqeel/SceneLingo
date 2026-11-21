@@ -49,6 +49,7 @@ await page.addInitScript(() => {
   window.LanguageModel = {
     availability: async () => get("state", "downloadable"),
     create: async (o) => {
+      if (get("createFail", "0") === "1") throw new DOMException("There is not enough disk space", "QuotaExceededError");
       set("creates", Number(get("creates", 0)) + 1);
       if (get("state", "downloadable") === "downloadable") {
         set("state", "downloading");
@@ -113,11 +114,12 @@ try {
   check("signed in", await until(async () => /Inbox/.test(await text()), 25000), await text());
   check("starting the app and opening pages loads no on-device model", (await stub("creates")) === null);
 
-  // ---- first card: cloud, because the model isn't downloaded; Explore says nothing about the on-device model
+  // ---- first card: cloud, because the model isn't downloaded; a passing line points to Profile, once
   await explainOnce();
   await shot("01-first-card");
   check("the first card came from the cloud (the model isn't downloaded yet)", /Cloud/.test(await text()) && aiCalls.card === 1, `${aiCalls.card}`);
-  check("Explore shows no on-device setup under the card", (await page.getByText(/on-device model|on this device\?/i).count()) === 0 && (await page.getByRole("button", { name: /Download|Not now/ }).count()) === 0);
+  check("a passing line under the first card points to Profile, with no buttons", await until(async () => (await page.getByText("Cards and translations run on this computer: faster, private, and free.").count()) === 1 && (await page.getByRole("link", { name: "Profile" }).count()) >= 1 && (await page.getByRole("button", { name: /Download|Not now/ }).count()) === 0, 4000));
+  check("the line goes away by itself after a few seconds", await until(async () => (await page.getByText("Cards and translations run on this computer").count()) === 0, 12000));
   check("showing the card loaded no model", (await stub("creates")) === null);
 
   // ---- the one place to set it up: Profile
@@ -167,11 +169,24 @@ try {
   await page.evaluate(() => { sessionStorage.setItem("state", "downloading"); sessionStorage.removeItem("hang"); });
   await page.goto(`${SITE}/profile`);
   await page.waitForSelector("#on-device");
-  check("a download Chrome runs by itself says so, with no spinner and no percentage", /Chrome is downloading the model in the background/.test(await text("#on-device")) && (await page.locator("#on-device .animate-spin").count()) === 0 && !/%/.test(await text("#on-device")), await text("#on-device"));
+  check("a download Chrome runs by itself says so, with no spinner, no percentage and no button", /Chrome is downloading the model in the background/.test(await text("#on-device")) && (await page.locator("#on-device .animate-spin").count()) === 0 && !/%/.test(await text("#on-device")) && (await page.locator("#on-device").getByRole("button").count()) === 0, await text("#on-device"));
   await shot("07-chromes-own-download");
   await page.evaluate(() => sessionStorage.setItem("state", "available"));
-  await page.locator("#on-device").getByRole("button", { name: "Check again" }).click();
-  check("Check again notices it is finished", await until(async () => /Ready/.test(await text("#on-device")), 4000), await text("#on-device"));
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  check("when Chrome finishes, the card updates by itself", await until(async () => /Ready/.test(await text("#on-device")), 4000), await text("#on-device"));
+
+  // ---- Chrome refuses: say what it said, and offer to try again
+  await page.evaluate(() => { sessionStorage.setItem("state", "downloadable"); sessionStorage.setItem("createFail", "1"); });
+  await page.goto(`${SITE}/profile`);
+  await page.waitForSelector("#on-device");
+  await page.locator("#on-device").getByRole("button", { name: "Download" }).click();
+  check("a failed download says so, in Chrome's words, with a way to try again", await until(async () => /The download didn't finish\. Chrome said: There is not enough disk space/.test(await text("#on-device")) && (await page.locator("#on-device").getByRole("button", { name: "Try again" }).count()) === 1, 4000), await text("#on-device"));
+  await shot("08-failed-download");
+  await page.evaluate(() => sessionStorage.removeItem("createFail"));
+
+  // ---- the passing line never comes back
+  await explainOnce();
+  check("the line under a card never shows again once it has been seen", (await page.getByText("Cards and translations run on this computer").count()) === 0);
 
   check("no page errors during the whole journey", problems.length === 0, problems.slice(0, 3).join(" | "));
 } catch (e) {

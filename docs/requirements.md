@@ -865,16 +865,19 @@ The English learning-card request shall use Firebase AI Logic `PREFER_ON_DEVICE`
 The web application shall use Firebase JavaScript SDK v12.5.0 or later for Web hybrid inference. The SDK uses the Chrome Prompt API when the on-device model is ready, and answers from the cloud whenever it is not (not downloaded, still downloading, unsupported language or device, or no Prompt API in the browser). The learner is never blocked waiting for a download, and the card always shows where it was produced.
 
 **Consent and download:**
-- The model is several GB, so it is downloaded only after the learner says yes. The app never starts the download by itself, and Explore says nothing about it.
+- The model is several GB, so it is downloaded only after the learner says yes. The app never starts the download by itself.
 - The one place to set it up is the **On-device model** section in Profile, shown only where the model could run (Chrome says it can be downloaded, is downloading, or is ready). It states the requirements (several GB, 22 GB free space, an unmetered connection) and has a **Download** button; pressing it is the learner's consent, and the download starts from that click. The session Chrome opens for the download is released straight away.
-- While it runs, cards keep working in the cloud, and later cards run on this device once it is ready. The card always shows which one produced it.
+- Explore shows one passing line, once per device, under the first generated card: "Cards and translations run on this computer: faster, private, and free. Visit the Profile page." It stays for about 8 seconds, has no buttons, never shows again, and shows only where the model could run.
+- While it downloads, cards keep working in the cloud, and later cards run on this device once it is ready. The card always shows which one produced it.
 - Where the translation language is supported on-device but the model is not downloaded yet, the language picker says "On this device once downloaded" and the cloud answers meanwhile.
-- The section follows the download, and only here:
-  - Chrome's own answer is the truth. The section asks Chrome again when the learner returns to the tab, and every 15 seconds while a download shows and the tab is in view (a hidden tab does nothing), so a download that Chrome drops, or that the learner turns off in Chrome, clears without a reload. No timer runs when nothing is downloading.
-  - A download started here shows "Starting…" until Chrome reports real progress, then "Downloading… 40%". It never shows a made-up 0%.
-  - If nothing moves for 30 seconds the spinner stops and the text says it is still downloading in the background, that it needs enough space and an unmetered connection, and how to stop it in Chrome (Settings, System, On-device AI), with a **Check again** button. The app cannot cancel a download Chrome is running, so it offers no Cancel button.
-  - A download Chrome runs on its own, or one left over from before a reload, shows "Chrome is downloading the model in the background" with no spinner and no percentage, and a **Check again** button.
-  - A download that did not finish shows "The download didn't finish" and **Try again**; if Chrome now says the device cannot run the model, the section is hidden.
+- The section shows these states, and only these:
+  1. **Download** button.
+  2. **Starting…** with a spinner, after the learner presses Download, until Chrome reports progress. Never a made-up 0%.
+  3. **Downloading… 40%** once Chrome reports a real percentage.
+  4. **"Chrome is downloading the model in the background."** with no button and no spinner, when it takes long (no progress for 30 seconds), or when the download is not one this page started (Chrome's own, or left over from before a reload).
+  5. **Ready**, shown automatically when Chrome says the model is installed.
+  6. **A failure:** "The download didn't finish" with Chrome's own message, if it gave one, and a **Try again** button. If Chrome now says the device cannot run the model, the section is hidden.
+- Chrome's answer is the truth. The section asks Chrome again when the learner returns to the tab, and every 15 seconds while a download shows and the tab is in view (a hidden tab does nothing), so a download that finishes, fails, or is dropped is reflected without a reload. No timer runs when nothing is downloading.
 
 **Memory:** The model is loaded into memory only when the learner presses Explain or Translate (the SDK opens a session then). Starting the app, opening pages, and checking availability load nothing.
 
