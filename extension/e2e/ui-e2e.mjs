@@ -64,7 +64,7 @@ if (SITE.startsWith("http://localhost")) {
     route.fulfill({ status: 200, contentType: TYPES[path.extname(file)] || "application/octet-stream", body: fs.readFileSync(file) });
   });
 }
-page.on("console", (m) => { const t = m.text(); if (/Content Security Policy|Refused to/.test(t)) problems.push("CSP: " + t.slice(0, 160)); });
+page.on("console", (m) => { const t = m.text(); if (/Content Security Policy|Refused to/.test(t) && !/report-only/i.test(t)) problems.push("CSP: " + t.slice(0, 160)); }); // a third party's report-only note (for example Google's reCAPTCHA frame) is not ours and is not enforced
 page.on("pageerror", (e) => problems.push("pageerror: " + String(e).slice(0, 160)));
 
 let aiCalls = { card: 0, translate: 0 };
