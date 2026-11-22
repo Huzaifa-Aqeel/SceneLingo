@@ -84,7 +84,7 @@ export type PracticeMode = "flashcard" | "reverse" | "quiz" | "mistakes" | "conv
 
 // One atomic write: the review event (history) and the card's current statistics change together or not at all.
 // An answer moves the card on the ladder (up for "good", down for "again") unless `schedule` is false.
-// Practice-only sessions (Study anyway, Review mistakes) pass false: they are recorded in the history and
+// Practice-only sessions (Practise anyway, Review mistakes) pass false: they are recorded in the history and
 // the card's statistics, but the card keeps its date.
 export async function recordReview(uid: string, card: LearningCard, rating: Rating, mode: PracticeMode, opts: { schedule: boolean; now?: Date }): Promise<void> {
   const now = opts.now ?? new Date();

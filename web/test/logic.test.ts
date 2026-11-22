@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { blankOut, cardIdFor, effectiveKind, isSentenceCard, normalizeText, selectedFrom, splitSentences, tokenize, wordsOf } from "@/lib/text";
-import { describeGap, gapFor, isDue, LADDER_DAYS, nextReview } from "@/lib/schedule";
+import { isDue, LADDER_DAYS, nextReview } from "@/lib/schedule";
 import { buildOptions, buildQuestion, planQuiz, shuffle } from "@/lib/quiz";
 import { categoriesPresent, inCategory, parseCategory, practiceUrl } from "@/lib/category";
 import { buildSession, dueCount, mistakes } from "@/lib/session";
@@ -106,14 +106,6 @@ describe("review schedule", () => {
   });
   it("never makes a missed card due today", () => {
     expect(isDue(nextReview(0, "again", now).dueAt, now)).toBe(false);
-  });
-  it("describes the gaps in plain words", () => {
-    expect(gapFor(0, "again", now)).toBe("Tomorrow");
-    expect(gapFor(2, "again", now)).toBe("3 days");
-    expect(gapFor(0, "good", now)).toBe("3 days");
-    expect(gapFor(3, "good", now)).toBe("1 month");
-    expect(gapFor(4, "good", now)).toBe("2 months");
-    expect(describeGap(0)).toBe("Tomorrow");
   });
   it("treats a never-reviewed card as due", () => {
     expect(isDue(null, now)).toBe(true);

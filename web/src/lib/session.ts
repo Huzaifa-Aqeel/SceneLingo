@@ -37,7 +37,7 @@ export function pickDue<T extends Reviewable>(cards: readonly T[], now: Date, li
   return shuffle([...overdue.slice(0, overdueSlots + moreOverdue), ...fresh.slice(0, freshSlots + moreFresh)], rng);
 }
 
-// "due": what is due now (see pickDue). "all" (Study anyway): the due cards first, then the rest, lowest step first.
+// "due": what is due now (see pickDue). "all" (Practise anyway): the due cards first, then the rest, lowest step first.
 // "mistakes": the cards last answered wrong, most missed first.
 export function buildSession<T extends Reviewable>(cards: readonly T[], kind: SessionKind, now: Date, limit = 20, rng: () => number = Math.random): T[] {
   if (kind === "mistakes") return mistakes(cards).slice(0, limit);

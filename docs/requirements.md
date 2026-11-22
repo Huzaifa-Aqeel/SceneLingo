@@ -1043,7 +1043,7 @@ The learner sets one preference:
 ### FR-HOME-001 — Home screen
 
 **Priority:** Removed  
-There is no Home screen. The application opens on the Inbox, which already shows what is new, and "Due now" lives on the Practice page. Unknown addresses (including `/`) lead to the Inbox.
+There is no Home screen. The application opens on the Inbox, which already shows what is new, and the cards ready to practise are shown on the Practice page. Unknown addresses (including `/`) lead to the Inbox.
 
 ### FR-PRA-001 — Flashcards
 
@@ -1054,11 +1054,11 @@ The learner shall be able to practise saved items using flashcards.
 - Front: the question "What does this mean?" and the selected word, phrase, or sentence.
 - The learner thinks of the meaning and presses **Reveal answer** (or Space, or clicks the card).
 - Back: the type, English meaning, contextual meaning, the translation in the learner's language if saved, all synonyms, all examples, and the original subtitle with the saved text emphasised, the video title, and a link to the moment in the video.
-- The learner marks the card **Still learning** or **Got it** (keys 1 and 2, or the arrow keys). Each button shows when the card will come back (FR-PRA-007). The buttons appear only after the reveal. Two buttons are used on purpose: a finer scale only changes the next date and would slow the learner down on every card.
+- The learner marks the card **Still learning** or **Got it** (keys 1 and 2, or the arrow keys). The buttons show only their labels, never dates: the schedule (FR-PRA-007) works behind the scenes and the learner is not told when a card will return. The buttons appear only after the reveal. Two buttons are used on purpose: a finer scale only changes the next date and would slow the learner down on every card.
 - A card is shown once per session. A card marked **Got it** or **Still learning** is not shown again until its next date arrives (FR-PRA-007), neither later in the same session nor in another practice mode.
 - A session holds up to 20 cards. Of the 20 slots, 13 (65%) go to **overdue** cards, the most overdue first, and 7 (35%) go to **new** cards that have never been answered. A side with fewer cards than its share hands the spare slots to the other side, and a session is not padded with cards that are not due. The cards are shuffled so old and new come in mixed order. The Practice page shows the true number due and offers "Start next 20" when more than 20 are due.
-- Flashcards, Reverse flashcards, and Quiz only use cards that are **due**. When nothing is due the screen says "Nothing due" and offers **Study anyway**.
-- **Study anyway** and **Review mistakes** are practice only: the answers are recorded in the review history and the card's statistics, but the card keeps its date.
+- Flashcards, Reverse flashcards, and Quiz only use cards that are **ready** (the schedule decides which). The word "due" is never shown to the learner. When nothing is ready the screen says "You're all caught up" and offers **Practise anyway**.
+- **Practise anyway** and **Review mistakes** are practice only: the answers are recorded in the review history and the card's statistics, but the card keeps its date.
 
 ### FR-PRA-002 — Reverse flashcards
 
@@ -1068,7 +1068,7 @@ A **Reverse flashcards** mode shows the meaning first ("Which word or expression
 ### FR-PRA-003 — Quiz
 
 **Priority:** Must have  
-One **Quiz** mode builds up to ten multiple-choice questions about the learner's due cards (all cards under Study anyway), with the wrong options taken from all saved cards. A right answer counts as Got it and a wrong answer as Still learning, so the card moves on the ladder as in FR-PRA-007. It needs at least four saved cards, and says how many more are needed when there are fewer. Each question uses one of three formats, in turn:
+One **Quiz** mode builds up to ten multiple-choice questions about the learner's due cards (all cards under Practise anyway), with the wrong options taken from all saved cards. A right answer counts as Got it and a wrong answer as Still learning, so the card moves on the ladder as in FR-PRA-007. It needs at least four saved cards, and says how many more are needed when there are fewer. Each question uses one of three formats, in turn:
 - **Guess the meaning:** the term (with its subtitle) is shown and the learner picks its meaning.
 - **Complete the sentence:** the saved subtitle is shown with the term blanked out and the learner picks the expression that fits.
 - **Contextual:** the subtitle is shown with the term highlighted and the learner picks what it means in that scene.
@@ -1081,9 +1081,9 @@ One **Quiz** mode builds up to ten multiple-choice questions about the learner's
 ### FR-PRA-004 — Practice hub
 
 **Priority:** Must have  
-Practice offers Flashcards, Reverse flashcards, Quiz, and Review mistakes, plus a single "Due now" action.
+Practice offers Flashcards, Reverse flashcards, Quiz, and Review mistakes, plus a single banner: "Ready to practise · N cards" with a **Start** button, or "You're all caught up" with **Practise anyway**.
 
-**Practising one type:** When the learner has cards in at least two categories (vocabulary, idiom, slang, expression), a row of buttons appears above the Due now banner: **All** (the default) and one button for each category the learner has cards in, each showing how many cards of that category are due. A category with nothing due stays visible but dimmed, with a count of 0. Choosing a category limits the Due now banner, Flashcards, Reverse flashcards, Quiz, and Review mistakes to cards of that category; the 65/35 mix and the 20-card cap apply inside it. The choice is kept in the address (`?cat=`) so Back and Close return to it, and it is not remembered between visits. When nothing is due in the chosen category the screen says "Nothing due in Slang" and offers Study anyway within that category. The schedule stays one per card, never per category. Quiz questions are about the chosen category's cards, and their wrong options come from the same category first and from the other categories only to fill up. With a single category the row is not shown. Options that cannot run yet say why (for example "Save 2 more to unlock").
+**Practising one type:** When the learner has cards in at least two categories (vocabulary, idiom, slang, expression), a row of buttons appears above the banner: **All** (the default) and one button for each category the learner has cards in. The buttons carry only the category names, no numbers; the banner shows how many cards are ready for the chosen category. Choosing a category limits the banner, Flashcards, Reverse flashcards, Quiz, and Review mistakes to cards of that category; the 65/35 mix and the 20-card cap apply inside it. The choice is kept in the address (`?cat=`) so Back and Close return to it, and it is not remembered between visits. When nothing is ready in the chosen category the screen says "You're all caught up in Slang" and offers Practise anyway within that category. The schedule stays one per card, never per category. Quiz questions are about the chosen category's cards, and their wrong options come from the same category first and from the other categories only to fill up. With a single category the row is not shown. Options that cannot run yet say why (for example "Save 2 more to unlock").
 
 ### FR-PRA-010 — Talk it out (spoken conversation)
 
@@ -1133,7 +1133,7 @@ Each card sits on a ladder of steps, and each step has a wait: step 0 is 1 day, 
 - **Got it:** one step up (never past the top). A new card comes back in 3 days.
 - **Still learning:** one step down (never below step 0). The card comes back after the wait of the step it lands on, so a card that had climbed far returns later than one that was new: a card on step 3 (14 days) returns in 7 days, a card on step 1 or 0 returns tomorrow. A missed card is never due on the same day.
 
-Each button shows its result ("Tomorrow", "3 days", "1 month"). Every answer to a due card, in any mode, moves the card by the same rule; practice-only sessions do not. The rule is deterministic and does not reproduce full SM-2.
+The buttons do not show these gaps to the learner. Every answer to a due card, in any mode, moves the card by the same rule; practice-only sessions do not. The rule is deterministic and does not reproduce full SM-2.
 
 ### FR-PRA-008 — Practice on small screens
 

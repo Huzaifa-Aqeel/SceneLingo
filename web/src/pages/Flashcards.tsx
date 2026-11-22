@@ -13,7 +13,7 @@ import { usePreferences } from "@/hooks/usePreferences";
 import { translationKey } from "@/languages";
 import type { LearningCard } from "@/lib/schemas";
 import { categoryName, inCategory, parseCategory, practiceUrl } from "@/lib/category";
-import { gapFor, RATING_LABEL, type Rating } from "@/lib/schedule";
+import { RATING_LABEL, type Rating } from "@/lib/schedule";
 import { isSentenceCard } from "@/lib/text";
 import { buildSession, type SessionKind } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,7 @@ const TONE: Record<Rating, string> = {
 };
 const RATINGS: readonly Rating[] = ["again", "good"];
 
-// A new session starts whenever the mode changes (for example from "Nothing due" to Study anyway).
+// A new session starts whenever the mode changes (for example from "all caught up" to Practise anyway).
 export default function Flashcards({ user }: { user: User }) {
   const [params] = useSearchParams();
   return <FlashcardSession key={`${params.get("set") ?? "due"}-${params.get("dir") ?? ""}-${params.get("cat") ?? ""}`} user={user} />;
@@ -36,7 +36,7 @@ function FlashcardSession({ user }: { user: User }) {
   const cat = parseCategory(params.get("cat"));
   const where = categoryName(cat);
   const home = practiceUrl("/practice", { cat });
-  // Normally only cards that are due. "all" (Study anyway) and "mistakes" are practice only: they never move a card.
+  // Normally only the cards that are ready (due). "all" (Practise anyway) and "mistakes" are practice only: they never move a card.
   const kind: SessionKind = params.get("set") === "all" ? "all" : params.get("set") === "mistakes" ? "mistakes" : "due";
   const schedules = kind === "due";
   const { cards } = useCards(user.uid);
@@ -93,8 +93,8 @@ function FlashcardSession({ user }: { user: User }) {
     const back = <Button asChild variant="outline"><Link to={home}>Back to Practice</Link></Button>;
     if (kind === "mistakes") return <Empty title={where ? `No mistakes in ${where}` : "No mistakes to review"} action={back}>You're all caught up.</Empty>;
     return (
-      <Empty title={where ? `Nothing due in ${where}` : "Nothing due"} action={<div className="flex gap-2"><Button asChild><Link to={practiceUrl("/practice/flashcards", { cat, set: "all", dir: reverse ? "reverse" : undefined })}>Study anyway</Link></Button>{back}</div>}>
-        Cards come back on the day their wait ends.
+      <Empty title={where ? `You're all caught up in ${where}` : "You're all caught up"} action={<div className="flex gap-2"><Button asChild><Link to={practiceUrl("/practice/flashcards", { cat, set: "all", dir: reverse ? "reverse" : undefined })}>Practise anyway</Link></Button>{back}</div>}>
+        Nothing is ready to practise right now.
       </Empty>
     );
   }
@@ -113,13 +113,12 @@ function FlashcardSession({ user }: { user: User }) {
   }
 
   const c = current!;
-  const now = new Date();
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-4 space-y-2">
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <Link to={home} className="hover:text-foreground">Close</Link>
-          <span>{reverse ? "Reverse flashcards" : kind === "all" ? "Study anyway" : kind === "mistakes" ? "Mistakes" : "Flashcards"}{where && ` · ${where}`} · {index + 1} / {total}</span>
+          <span>{reverse ? "Reverse flashcards" : kind === "all" ? "Practise anyway" : kind === "mistakes" ? "Mistakes" : "Flashcards"}{where && ` · ${where}`} · {index + 1} / {total}</span>
         </div>
         <Progress value={(index / total) * 100} aria-label="Progress" />
       </div>
@@ -142,9 +141,8 @@ function FlashcardSession({ user }: { user: User }) {
         <>
           <div className="mt-4 grid grid-cols-2 gap-3">
             {RATINGS.map((r) => (
-              <Button key={r} size="lg" variant="outline" className={cn("h-auto flex-col gap-0 py-2.5 text-base", TONE[r])} onClick={() => rate(r)}>
+              <Button key={r} size="lg" variant="outline" className={cn("h-14 text-base", TONE[r])} onClick={() => rate(r)}>
                 <span>{RATING_LABEL[r]}</span>
-                {schedules && <span className="text-xs font-normal opacity-80">{gapFor(c.review.reviewStage, r, now)}</span>}
               </Button>
             ))}
           </div>

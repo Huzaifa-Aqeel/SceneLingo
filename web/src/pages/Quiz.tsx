@@ -16,14 +16,14 @@ import { cn } from "@/lib/utils";
 
 const PROMPT = { meaning: "What does this mean?", complete: "Which expression completes the sentence?", context: "What does the highlighted part mean here?" } as const;
 
-// A new session starts whenever the mode changes (for example from "Nothing due" to Study anyway).
+// A new session starts whenever the mode changes (for example from "all caught up" to Practise anyway).
 export default function Quiz({ user }: { user: User }) {
   const [params] = useSearchParams();
   return <QuizSession key={`${params.get("set") ?? "due"}-${params.get("cat") ?? ""}`} user={user} />;
 }
 
 function QuizSession({ user }: { user: User }) {
-  // Normally only cards that are due. "all" (Study anyway) is practice only and never moves a card.
+  // Normally only the cards that are ready (due). "all" (Practise anyway) is practice only and never moves a card.
   const [params] = useSearchParams();
   const anyway = params.get("set") === "all";
   const cat = parseCategory(params.get("cat"));
@@ -71,7 +71,7 @@ function QuizSession({ user }: { user: User }) {
   if (total === 0) {
     const more = QUIZ_MIN_CARDS - cards.length;
     const back = <Button asChild variant="outline"><Link to={home}>Back to Practice</Link></Button>;
-    if (more <= 0 && !anyway) return <Empty title={where ? `Nothing due in ${where}` : "Nothing due"} action={<div className="flex gap-2"><Button asChild><Link to={practiceUrl("/practice/quiz", { cat, set: "all" })}>Study anyway</Link></Button>{back}</div>}>Cards come back on the day their wait ends.</Empty>;
+    if (more <= 0 && !anyway) return <Empty title={where ? `You're all caught up in ${where}` : "You're all caught up"} action={<div className="flex gap-2"><Button asChild><Link to={practiceUrl("/practice/quiz", { cat, set: "all" })}>Practise anyway</Link></Button>{back}</div>}>Nothing is ready to practise right now.</Empty>;
     return <Empty title="Not enough cards for a quiz" action={back}>{more > 0 ? `Save ${more} more ${more === 1 ? "card" : "cards"} to start quizzing.` : "Your cards need different meanings to make fair questions."}</Empty>;
   }
 
@@ -92,7 +92,7 @@ function QuizSession({ user }: { user: User }) {
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-4 space-y-2">
-        <div className="flex items-center justify-between text-sm text-muted-foreground"><Link to={home} className="hover:text-foreground">Close</Link><span>{anyway ? "Study anyway" : "Quiz"}{where && ` · ${where}`} · {index + 1} / {total}</span></div>
+        <div className="flex items-center justify-between text-sm text-muted-foreground"><Link to={home} className="hover:text-foreground">Close</Link><span>{anyway ? "Practise anyway" : "Quiz"}{where && ` · ${where}`} · {index + 1} / {total}</span></div>
         <Progress value={(index / total) * 100} aria-label="Progress" />
       </div>
       <div className="rounded-3xl bg-card p-8 shadow-[0_2px_16px_-4px_rgb(0_0_0/0.15)]">

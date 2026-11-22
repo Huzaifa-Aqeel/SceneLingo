@@ -8,7 +8,7 @@ export const TOP_STAGE = LADDER_DAYS.length - 1;
 export type Rating = "again" | "good";
 export const RATING_LABEL: Record<Rating, string> = { again: "Still learning", good: "Got it" };
 
-export interface Schedule { stage: number; dueAt: Date; minutes: number }
+export interface Schedule { stage: number; dueAt: Date }
 
 const DAY = 86_400_000;
 
@@ -16,19 +16,8 @@ export function nextReview(stage: number, rating: Rating, now: Date): Schedule {
   const at = Math.min(Math.max(Math.floor(stage) || 0, 0), TOP_STAGE);
   const to = rating === "good" ? Math.min(at + 1, TOP_STAGE) : Math.max(at - 1, 0);
   const days = LADDER_DAYS[to]!;
-  return { stage: to, minutes: days * 1440, dueAt: new Date(now.getTime() + days * DAY) };
+  return { stage: to, dueAt: new Date(now.getTime() + days * DAY) };
 }
-
-// "Tomorrow", "3 days", "2 months": what each button promises.
-export function describeGap(minutes: number): string {
-  const days = Math.max(1, Math.round(minutes / 1440));
-  if (days === 1) return "Tomorrow";
-  if (days < 30) return `${days} days`;
-  const months = Math.round(days / 30);
-  return `${months} ${months === 1 ? "month" : "months"}`;
-}
-
-export const gapFor = (stage: number, rating: Rating, now: Date): string => describeGap(nextReview(stage, rating, now).minutes);
 
 // A card that has never been reviewed is due now.
 export const isDue = (nextReviewAt: Date | null | undefined, now: Date): boolean => !nextReviewAt || nextReviewAt.getTime() <= now.getTime();

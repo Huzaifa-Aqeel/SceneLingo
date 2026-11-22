@@ -167,17 +167,18 @@ try {
   await page.getByRole("link", { name: /Practice/ }).click();
   check("Practice shows what is due and four ways to study", await until(async () => /5 cards/.test(await text("main")) && (await page.getByText("Flashcards", { exact: true }).count()) > 0 && (await page.getByText("Reverse flashcards").count()) > 0 && (await page.getByText("Quiz", { exact: true }).count()) > 0 && (await page.getByText("Review mistakes").count()) > 0 && (await page.getByText("Fill in the blank").count()) === 0, 8000));
   await shot("05-practice");
-  const pill = (name) => page.getByRole("button", { name: new RegExp(`^${name}\\s*\\d`) });
-  check("a row of type buttons shows how many cards are due in each", await until(async () => (await page.getByRole("group", { name: "Practise by type" }).count()) === 1 && /All\s*5/.test(await text("main")) && /Idioms\s*3/.test(await text("main")) && /Vocabulary\s*1/.test(await text("main")) && /Slang\s*1/.test(await text("main")) && (await page.getByRole("button", { name: /^Expressions/ }).count()) === 0, 5000), await text("main"));
+  const pill = (name) => page.getByRole("button", { name, exact: true });
+  check("a row of type buttons names the types, with no numbers on them", await until(async () => (await page.getByRole("group", { name: "Practise by type" }).count()) === 1 && (await page.getByRole("button", { name: "Idioms", exact: true }).count()) === 1 && (await page.getByRole("button", { name: "Vocabulary", exact: true }).count()) === 1 && (await page.getByRole("button", { name: "Slang", exact: true }).count()) === 1 && (await page.getByRole("button", { name: /^Expressions/ }).count()) === 0, 5000), await text("main"));
+  check("the page says how many cards are ready, in plain words", /Ready to practise/.test(await text("main")) && /5 cards/.test(await text("main")) && !/\bdue\b/i.test(await text("main")), await text("main"));
   await pill("Idioms").click();
-  check("choosing Idioms narrows the due banner and says so", await until(async () => /Due now · Idioms/.test(await text("main")) && /3 cards/.test(await text("main")) && /cat=idiom/.test(page.url()), 3000), await text("main") + page.url());
+  check("choosing Idioms narrows the count and says so", await until(async () => /Ready to practise · Idioms/.test(await text("main")) && /3 cards/.test(await text("main")) && /cat=idiom/.test(page.url()), 3000), await text("main") + page.url());
   await pill("All").click();
-  check("All brings everything back", await until(async () => /Due now/.test(await text("main")) && /5 cards/.test(await text("main")) && !/cat=/.test(page.url()), 3000));
+  check("All brings everything back", await until(async () => /Ready to practise/.test(await text("main")) && /5 cards/.test(await text("main")) && !/cat=/.test(page.url()), 3000));
   await page.getByRole("link", { name: "Start" }).click();
   await page.waitForSelector('[role="button"][aria-label="Show the answer"]', { timeout: 10000 });
   check("the flashcard asks a question, shows the term, and offers a Reveal button", /1 \/ 5/.test(await text("main")) && /What does this mean\?/.test(await text("main")) && (await page.getByRole("button", { name: "Reveal answer" }).count()) === 1 && (await page.getByRole("button", { name: "Got it" }).count()) === 0);
   await page.getByRole("button", { name: "Reveal answer" }).click();
-  check("revealing flips it to the answer and shows two buttons with their next gaps", await until(async () => (await page.locator('[role="button"][aria-label="Show the term"]').count()) > 0 && (await page.getByRole("button", { name: /^Still learning\s*Tomorrow/ }).count()) === 1 && (await page.getByRole("button", { name: /^Got it\s*3 days/ }).count()) === 1 && (await page.getByRole("button", { name: /^(Again|Difficult|Easy)/ }).count()) === 0, 3000), await text("main"));
+  check("revealing flips it to the answer and shows two plain buttons, with no dates on them", await until(async () => (await page.locator('[role="button"][aria-label="Show the term"]').count()) > 0 && (await page.getByRole("button", { name: "Still learning", exact: true }).count()) === 1 && (await page.getByRole("button", { name: "Got it", exact: true }).count()) === 1 && (await page.getByRole("button", { name: /^(Again|Difficult|Easy)/ }).count()) === 0, 3000), await text("main"));
   check("the back shows the type, examples and the scene it came from", await until(async () => { const t = await text("main"); return /Examples/i.test(t) && /From the scene/i.test(t) && /(Idiom|Vocabulary|Slang|Expression)/i.test(t); }, 3000));
   await sleep(900); // let the flip animation finish before the screenshot
   await shot("06-flashcard-back");
@@ -204,14 +205,14 @@ try {
 
   // ---------------------------------------------------------------- nothing is due now: every mode hides the cards
   await page.getByRole("link", { name: "Back to Practice" }).click();
-  check("Practice says nothing is due", await until(async () => /Nothing due/.test(await text("main")) && (await page.getByRole("link", { name: "Study anyway" }).count()) > 0, 8000), await text("main"));
+  check("Practice says all is done, in plain words", await until(async () => /You're all caught up/.test(await text("main")) && !/\bdue\b/i.test(await text("main")) && (await page.getByRole("link", { name: "Practise anyway" }).count()) > 0, 8000), await text("main"));
   await page.getByRole("link", { name: /^Flashcards/ }).click();
-  check("Flashcards hides cards that are not due, and offers Study anyway", await until(async () => /Nothing due/.test(await text("main")) && (await page.getByRole("link", { name: "Study anyway" }).count()) > 0, 5000), await text("main"));
+  check("Flashcards hides cards that are not ready, and offers Practise anyway", await until(async () => /You're all caught up/.test(await text("main")) && (await page.getByRole("link", { name: "Practise anyway" }).count()) > 0, 5000), await text("main"));
   await page.goto(`${SITE}/practice/quiz`);
-  check("the Quiz hides cards that are not due too", await until(async () => /Nothing due/.test(await text("main")) && (await page.getByRole("link", { name: "Study anyway" }).count()) > 0, 8000), await text("main"));
+  check("the Quiz hides cards that are not ready too", await until(async () => /You're all caught up/.test(await text("main")) && (await page.getByRole("link", { name: "Practise anyway" }).count()) > 0, 8000), await text("main"));
 
-  // ---------------------------------------------------------------- quiz (Study anyway)
-  await page.getByRole("link", { name: "Study anyway" }).click();
+  // ---------------------------------------------------------------- quiz (Practise anyway)
+  await page.getByRole("link", { name: "Practise anyway" }).click();
   await page.waitForSelector('[role="group"][aria-label="Choices"]', { timeout: 10000 });
   check("the quiz offers several choices", (await page.locator('[role="group"][aria-label="Choices"] button').count()) >= 3);
   const seenPrompts = new Set();
@@ -229,11 +230,11 @@ try {
   check("the quiz ends with a score", await until(async () => /\/ 5/.test(await text("main")) && (await page.getByRole("button", { name: "Try again" }).count()) > 0, 5000));
   check("five quiz answers were recorded", !!(await until(async () => (await events()).filter((e) => e.mode === "quiz").length === 5, 8000)));
   const gotAfter = await fieldsOf(gotId);
-  check("Study anyway is practice only: it did not move the card on the ladder", gotAfter.reviewStage.integerValue === got.reviewStage.integerValue && gotAfter.nextReviewAt.timestampValue === got.nextReviewAt.timestampValue, JSON.stringify(gotAfter));
+  check("Practise anyway is practice only: it did not move the card on the ladder", gotAfter.reviewStage.integerValue === got.reviewStage.integerValue && gotAfter.nextReviewAt.timestampValue === got.nextReviewAt.timestampValue, JSON.stringify(gotAfter));
 
-  // ---------------------------------------------------------------- reverse flashcards (Study anyway)
+  // ---------------------------------------------------------------- reverse flashcards (Practise anyway)
   await page.goto(`${SITE}/practice/flashcards?dir=reverse`);
-  await page.getByRole("link", { name: "Study anyway" }).click();
+  await page.getByRole("link", { name: "Practise anyway" }).click();
   await page.waitForSelector("text=Which word or expression means this?", { timeout: 15000 });
   check("reverse flashcards show the meaning first, with no term on the front", /1 \/ 5/.test(await text("main")) && (await page.getByRole("button", { name: "Reveal answer" }).count()) === 1);
   await page.getByRole("button", { name: "Reveal answer" }).click();
@@ -246,17 +247,17 @@ try {
 
   // ---------------------------------------------------------------- practising one type
   await page.goto(`${SITE}/practice?cat=slang`);
-  check("a type with nothing due says so, and the choice survives in the address", await until(async () => /All caught up · Slang/.test(await text("main")) && /Nothing due/.test(await text("main")) && (await page.getByRole("button", { name: /^Slang/ }).getAttribute("aria-pressed")) === "true", 8000), await text("main"));
-  await page.getByRole("link", { name: "Study anyway" }).click();
+  check("a type with nothing due says so, and the choice survives in the address", await until(async () => /You're all caught up/.test(await text("main")) && /Slang/.test(await text("main")) && (await page.getByRole("button", { name: /^Slang/ }).getAttribute("aria-pressed")) === "true", 8000), await text("main"));
+  await page.getByRole("link", { name: "Practise anyway" }).click();
   await page.waitForSelector('[role="button"][aria-label="Show the answer"]', { timeout: 10000 });
-  check("Study anyway inside a type shows only that type", /Study anyway · Slang · 1 \/ 1/.test(await text("main")), await text("main"));
+  check("Practise anyway inside a type shows only that type", /Practise anyway · Slang · 1 \/ 1/.test(await text("main")), await text("main"));
   await page.getByRole("link", { name: "Close" }).click();
   check("closing returns to the same type", /cat=slang/.test(page.url()));
   await page.goto(`${SITE}/practice/flashcards?cat=slang`);
-  check("flashcards for a type with nothing due say which type", await until(async () => /Nothing due in Slang/.test(await text("main")), 8000), await text("main"));
+  check("flashcards for a type with nothing due say which type", await until(async () => /all caught up in Slang/.test(await text("main")), 8000), await text("main"));
   await page.goto(`${SITE}/practice/quiz?set=all&cat=idiom`);
   await page.waitForSelector('[role="group"][aria-label="Choices"]', { timeout: 10000 });
-  check("a quiz for one type asks only about that type's cards (three idioms)", /Study anyway · Idioms · 1 \/ 3/.test(await text("main")), await text("main"));
+  check("a quiz for one type asks only about that type's cards (three idioms)", /Practise anyway · Idioms · 1 \/ 3/.test(await text("main")), await text("main"));
 
   // ---------------------------------------------------------------- progress
   await page.goto(`${SITE}/progress`);
