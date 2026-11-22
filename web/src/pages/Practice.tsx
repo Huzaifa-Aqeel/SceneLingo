@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from "react-router";
 import type { User } from "firebase/auth";
-import { Layers, ListChecks, Repeat2, RotateCcw } from "lucide-react";
+import { Layers, ListChecks, Mic, Repeat2, RotateCcw } from "lucide-react";
 import { Empty } from "@/components/Empty";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { categoriesPresent, categoryName, inCategory, parseCategory, practiceUrl
 import { QUIZ_MIN_CARDS } from "@/lib/quiz";
 import { CATEGORY_PLURAL } from "@/lib/schemas";
 import { dueCount, mistakes } from "@/lib/session";
+import { speechSupported } from "@/lib/speech";
 import { cn } from "@/lib/utils";
 
 function Tile({ to, icon: Icon, title, text, disabled }: { to: string; icon: typeof Layers; title: string; text: string; disabled?: boolean }) {
@@ -75,6 +76,7 @@ export default function Practice({ user }: { user: User }) {
         <Tile to={practiceUrl("/practice/flashcards", { cat })} icon={Layers} title="Flashcards" text="See the term, recall the meaning." />
         <Tile to={practiceUrl("/practice/flashcards", { cat, dir: "reverse" })} icon={Repeat2} title="Reverse flashcards" text={reversible ? "See the meaning, recall the term." : "Needs a word or phrase card."} disabled={reversible === 0} />
         <Tile to={practiceUrl("/practice/quiz", { cat })} icon={ListChecks} title="Quiz" text={cards.length >= QUIZ_MIN_CARDS ? "Test yourself with three kinds of questions." : `Save ${QUIZ_MIN_CARDS - cards.length} more to unlock.`} disabled={cards.length < QUIZ_MIN_CARDS} />
+        <Tile to={practiceUrl("/practice/talk", { cat })} icon={Mic} title="Talk it out" text={!speechSupported() ? "Needs Chrome or Edge with a microphone." : reversible ? "Use it in a real conversation." : "Needs a word or phrase card."} disabled={!speechSupported() || reversible === 0} />
         <Tile to={practiceUrl("/practice/flashcards", { cat, set: "mistakes" })} icon={RotateCcw} title="Review mistakes" text={wrong ? `${wrong} to revisit, most missed first.` : "No mistakes. Nice."} disabled={wrong === 0} />
       </div>
     </>

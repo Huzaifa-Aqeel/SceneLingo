@@ -1085,6 +1085,23 @@ Practice offers Flashcards, Reverse flashcards, Quiz, and Review mistakes, plus 
 
 **Practising one type:** When the learner has cards in at least two categories (vocabulary, idiom, slang, expression), a row of buttons appears above the Due now banner: **All** (the default) and one button for each category the learner has cards in, each showing how many cards of that category are due. A category with nothing due stays visible but dimmed, with a count of 0. Choosing a category limits the Due now banner, Flashcards, Reverse flashcards, Quiz, and Review mistakes to cards of that category; the 65/35 mix and the 20-card cap apply inside it. The choice is kept in the address (`?cat=`) so Back and Close return to it, and it is not remembered between visits. When nothing is due in the chosen category the screen says "Nothing due in Slang" and offers Study anyway within that category. The schedule stays one per card, never per category. Quiz questions are about the chosen category's cards, and their wrong options come from the same category first and from the other categories only to fill up. With a single category the row is not shown. Options that cannot run yet say why (for example "Save 2 more to unlock").
 
+### FR-PRA-010 — Talk it out (spoken conversation)
+
+**Priority:** Could have  
+A **Talk it out** mode lets the learner use a saved word or phrase in a spoken conversation with an AI partner, in a real-world situation that is different from the scene the card came from. It is voice only: there is no typed fallback. Where the browser has no speech recognition or speech synthesis (for example Firefox) the Practice tile says "Needs Chrome or Edge with a microphone" and is not a link.
+
+**Flow:**
+- The app picks a card (the one asked for, otherwise a due one; never a whole sentence) and offers the model three settings from a fixed list of about thirty real-world situations (a job interview, a hotel desk, a roommate chat, a doctor's appointment, and so on). Slang is only offered casual settings; recently used settings are skipped. The model picks the one where the expression would feel most natural and writes a short situation, a partner (name and role), and the partner's first line. The situation and first line must not contain the expression and must not reuse the card's own scene.
+- The learner reads the situation and presses **Start talking** (a click is needed for the browser to allow speech). The partner speaks first.
+- The conversation is hands-free: the partner speaks, the microphone opens by itself, the learner answers and pauses, the partner replies, for up to three learner turns. The partner's answers are short (one or two sentences), stay in role, never correct the learner, and are spoken sentence by sentence while they are still being written. The last reply closes the conversation. If the learner stays quiet the partner nudges once, and a second silence ends the conversation. **End** finishes it early.
+- Speech recognition runs on the device when the English language pack is installed, and is biased toward the expression being practised; otherwise the browser's default is used. Speech output uses the browser's voices (a local voice is preferred). No audio and no transcript is stored.
+
+**Result:** whether the learner used the expression is decided in code from the learner's own lines (normal word forms count). A similar expression counts only if the model names words the learner really said. The result says **You used it**, **You said it another way**, or **Not this time**, shows the learner's lines with the expression marked, a short coach note on fit and understanding, and one better sentence. Buttons: Another scene, Back to Practice.
+
+**Recording:** one review event with mode `conversation`, rated good (used or similar) or again (missed). It updates the card's statistics like other practice, but it does not move the card's review date. A conversation in which nothing was heard is not recorded.
+
+**Hybrid inference:** the scene, the replies and the verdict each use the on-device model when it is installed and the cloud otherwise, with the same retry rules as cards.
+
 ### FR-PRA-005 — Track outcomes and review events
 
 **Priority:** Must have  

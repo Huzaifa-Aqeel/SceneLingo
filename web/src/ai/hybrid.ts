@@ -52,3 +52,41 @@ export async function askHybrid<T>({ hybrid, cloud, prompt, retryPrompt, parse, 
     return secondTry(bad);
   }
 }
+
+// ---------------------------------------------------------------- streaming (spoken replies start before the answer is complete)
+export interface StreamAskable {
+  generateContentStream(prompt: string): Promise<{ stream: AsyncIterable<{ text(): string; inferenceSource?: string }> }>;
+}
+
+// Streams text to `onText` as it arrives. The device is asked first. If it fails before saying anything, the
+// cloud is asked once. If it fails halfway, what already arrived is kept. A cloud-service error is not retried.
+export async function streamHybrid({ hybrid, cloud, prompt, onText, isCancelled }: { hybrid: StreamAskable; cloud: () => StreamAskable; prompt: string; onText: (chunk: string) => void; isCancelled?: () => boolean }): Promise<{ text: string; source: Source }> {
+  let source: Source = "IN_CLOUD";
+  const run = async (m: StreamAskable): Promise<string> => {
+    let all = "";
+    const r = await m.generateContentStream(prompt);
+    for await (const chunk of r.stream) {
+      if (isCancelled?.()) break;
+      source = sourceOf(chunk.inferenceSource) ?? source;
+      const t = chunk.text();
+      if (t) { all += t; onText(t); }
+    }
+    return all;
+  };
+  let heard = "";
+  try {
+    const text = await run({
+      generateContentStream: async (p) => {
+        const r = await hybrid.generateContentStream(p);
+        return { stream: (async function* () { for await (const c of r.stream) { heard += c.text(); yield c; } })() };
+      },
+    });
+    if (text.trim()) return { text, source };
+  } catch (e) {
+    if (e instanceof AIError) throw e;
+    if (heard.trim()) return { text: heard, source }; // it failed halfway: keep what was said
+  }
+  if (isCancelled?.()) return { text: heard, source };
+  source = "IN_CLOUD";
+  return { text: await run(cloud()), source };
+}

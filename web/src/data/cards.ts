@@ -80,7 +80,7 @@ export const addTranslation = (uid: string, cardId: string, t: TranslationResult
 
 export const deleteCard = (uid: string, cardId: string) => deleteDoc(cardRef(uid, cardId));
 
-export type PracticeMode = "flashcard" | "reverse" | "quiz" | "mistakes";
+export type PracticeMode = "flashcard" | "reverse" | "quiz" | "mistakes" | "conversation";
 
 // One atomic write: the review event (history) and the card's current statistics change together or not at all.
 // An answer moves the card on the ladder (up for "good", down for "again") unless `schedule` is false.

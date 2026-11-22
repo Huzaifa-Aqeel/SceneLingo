@@ -15,6 +15,7 @@ import CardDetail from "@/pages/CardDetail";
 import Practice from "@/pages/Practice";
 import Flashcards from "@/pages/Flashcards";
 import Quiz from "@/pages/Quiz";
+import Talk from "@/pages/Talk";
 import Progress from "@/pages/Progress";
 import Profile from "@/pages/Profile";
 
@@ -63,6 +64,7 @@ function Shell({ user }: { user: User }) {
           <Route path="/practice" element={<Practice user={user} />} />
           <Route path="/practice/flashcards" element={<Flashcards user={user} />} />
           <Route path="/practice/quiz" element={<Quiz user={user} />} />
+          <Route path="/practice/talk" element={<Talk user={user} />} />
           <Route path="/progress" element={<Progress user={user} />} />
           <Route path="/profile" element={<Profile user={user} onLogOut={logOut} />} />
           <Route path="*" element={<Navigate to="/inbox" replace />} />

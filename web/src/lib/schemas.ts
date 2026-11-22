@@ -152,7 +152,7 @@ export function parseCard(id: string, data: unknown): LearningCard | null {
 
 export const reviewEventSchema = z.object({
   cardId: z.string(),
-  mode: z.enum(["flashcard", "reverse", "quiz", "fill", "mistakes"]),
+  mode: z.enum(["flashcard", "reverse", "quiz", "fill", "mistakes", "conversation"]),
   result: z.enum(["correct", "incorrect"]),
   rating: z.enum(["again", "hard", "good", "easy"]).nullish(), // older reviews may carry hard or easy; new ones are again or good
   reviewedAt: timestamp,

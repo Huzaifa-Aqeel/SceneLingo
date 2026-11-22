@@ -37,3 +37,28 @@ export function usesTerm(example: string, term: string, kind?: string): boolean 
   const matched = content.filter((w) => tokens.some((t) => formOf(t, w))).length;
   return matched >= Math.ceil(content.length / 2); // an idiom's irregular verb ("got" for "get") may not match, its other words must
 }
+
+// Character ranges in `text` that match the term, for highlighting what the learner said. Matching words that are
+// separated only by small words ("break the ice", "help me, help you") are joined into one range.
+export function termRanges(text: string, term: string): [number, number][] {
+  const content = words(term).filter((w) => !FLEX.has(w));
+  const src = String(text ?? "");
+  const toks = [...src.matchAll(WORD)].map((m) => {
+    const low = m[0].normalize("NFKC").toLowerCase().replace(/’/g, "'");
+    return { a: m.index!, b: m.index! + m[0].length, low, hit: content.some((w) => formOf(low, w)) };
+  });
+  const out: [number, number][] = [];
+  let i = 0;
+  while (i < toks.length) {
+    if (!toks[i]!.hit) { i++; continue; }
+    let end = i, j = i + 1;
+    while (j < toks.length && j - end <= 3) { // at most three small words in between
+      if (toks[j]!.hit) { end = j; j++; continue; }
+      if (!FLEX.has(toks[j]!.low)) break;
+      j++;
+    }
+    out.push([toks[i]!.a, toks[end]!.b]);
+    i = end + 1;
+  }
+  return out;
+}
