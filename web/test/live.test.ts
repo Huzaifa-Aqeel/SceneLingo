@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildExplainConfig, buildExplainPrompt, englishCardSchema, validateEnglishCard, type ExplainInput } from "@/ai/englishCard";
+import { usesTerm } from "@/lib/usesTerm";
 import { buildPrompt as buildTranslatePrompt, translationSchema, validateTranslation } from "@/ai/translate";
 
 const env = Object.fromEntries(
@@ -37,6 +38,8 @@ async function generate(prompt: string, schema: unknown, token: string) {
 const samples: { name: string; input: ExplainInput; expectCategory?: string[] }[] = [
   { name: "idiom", input: { selectedText: "getting ahead of ourselves", selectionKind: "phrase", sourceSentence: "I think we're getting ahead of ourselves." }, expectCategory: ["idiom", "expression"] },
   { name: "single word", input: { selectedText: "reluctant", selectionKind: "word", sourceSentence: "She was reluctant to say anything about it." }, expectCategory: ["vocabulary"] },
+  { name: "groggy", input: { selectedText: "groggy", selectionKind: "word", sourceSentence: "And also, and then I'm so groggy, and then I'm" }, expectCategory: ["vocabulary"] },
+  { name: "help me, help you", input: { selectedText: "help me, help you", selectionKind: "phrase", sourceSentence: "Just help me, help you." } },
   { name: "slang", input: { selectedText: "no cap", selectionKind: "phrase", sourceSentence: "That was the best pizza I've ever had, no cap." }, expectCategory: ["slang", "expression"] },
   { name: "whole sentence", input: { selectedText: "Don't count your chickens before they hatch.", selectionKind: "sentence", sourceSentence: "Don't count your chickens before they hatch." } },
 ];
@@ -46,8 +49,10 @@ describe.skipIf(!live)("live cloud model", () => {
     it(`English card for ${s.name} is valid`, async () => {
       const token = await appCheckToken();
       const raw = await generate(buildExplainPrompt(s.input), asJson(englishCardSchema()), token);
-      const card = validateEnglishCard(raw);
-      console.log(`  ${s.name}: [${card.category}] ${card.meaningEn} | synonyms(${card.synonyms.length}): ${card.synonyms.join(", ")} | examples: ${card.exampleSentences.length}`);
+      const first = validateEnglishCard(raw); // as the model wrote it
+      const used = first.exampleSentences.filter((e) => usesTerm(e, s.input.selectedText, s.input.selectionKind)).length;
+      const card = validateEnglishCard(raw, s.input, { lenient: true });
+      console.log(`  ${s.name}: [${card.category}] ${card.meaningEn} | synonyms(${first.synonyms.length} -> ${card.synonyms.length}): ${card.synonyms.join(", ")} | examples using the term: ${used}/${first.exampleSentences.length}`);
       if (s.expectCategory) expect(s.expectCategory).toContain(card.category);
       expect(card.exampleSentences.every((e) => e.toLowerCase() !== s.input.sourceSentence.toLowerCase())).toBe(true);
     }, 60_000);

@@ -5,8 +5,9 @@ import { CATEGORIES, englishCardOutputSchema, type EnglishCardContent } from "@/
 import type { SelectionKind } from "@/lib/text";
 import { CLOUD_MODEL, getAi, getCloudModel, type Source } from "./client";
 import { askHybrid } from "./hybrid";
+import { usesTerm } from "@/lib/usesTerm";
 
-export const ENGLISH_PROMPT_VERSION = "1.1";
+export const ENGLISH_PROMPT_VERSION = "1.2";
 
 export interface ExplainInput {
   selectedText: string;
@@ -46,8 +47,8 @@ export function buildExplainPrompt(i: ExplainInput): string {
     `- meaningEn: a short plain-English definition.`,
     `- contextualMeaningEn: what it means in THIS sentence.`,
     `- partOfSpeech: for a single word only; omit otherwise.`,
-    `- synonyms: 4 to 6 words or expressions with a similar meaning in this context, most useful first. Fewer only if there truly are no more.`,
-    `- exampleSentences: 3 or 4 natural, original sentences in different everyday situations. Do not copy the subtitle.`,
+    `- synonyms: only words or expressions that could replace the selected text in this sentence without changing its meaning, most useful first. Give up to 6, but fewer, even none, if fewer truly fit. Never pad the list with loosely related words, and never use a long paraphrase as a synonym.`,
+    `- exampleSentences: 3 or 4 natural, original sentences in different everyday situations. Each one must use the selected text itself (in the same or a normal grammatical form, such as -ed, -ing or -s), not a synonym. Do not copy the subtitle.`,
     `- usageNote: optional note on register or formality.`,
     `- confidenceNote: only if the context is too thin to be sure; say the meaning may depend on the scene.`,
     `For an idiom, explain the idiomatic meaning, not the literal words. For a whole sentence, explain what is useful in it.`,
@@ -71,15 +72,35 @@ export function buildExplainConfig(cloudModel: string = CLOUD_MODEL) {
   };
 }
 
-export function validateEnglishCard(raw: unknown): EnglishCardContent {
+// With `input`, the card is also checked against what was selected: synonyms are cleaned, and every example
+// must use the selected text. Strict mode needs at least two such examples (so the caller can ask again);
+// lenient mode keeps the good ones, or, if there are none, what the model wrote, so a card is never lost.
+export function validateEnglishCard(raw: unknown, input?: Pick<ExplainInput, "selectedText" | "selectionKind">, opts: { lenient?: boolean } = {}): EnglishCardContent {
   let obj: unknown = raw;
   if (typeof raw === "string") {
     try { obj = JSON.parse(raw); } catch { throw new Error("invalid_format"); }
   }
   const r = englishCardOutputSchema.safeParse(obj);
   if (!r.success) throw new Error("invalid_card");
-  return r.data;
+  if (!input) return r.data;
+
+  const term = input.selectedText.trim().toLowerCase();
+  const seen = new Set<string>();
+  const synonyms = r.data.synonyms.filter((s) => {
+    const k = s.trim().toLowerCase();
+    if (!k || k === term || term.includes(k) || k.includes(term) || k.split(/\s+/).length > 5 || seen.has(k)) return false; // itself, a part of itself, a long paraphrase, a repeat
+    seen.add(k);
+    return true;
+  });
+
+  if (input.selectionKind === "sentence") return { ...r.data, synonyms };
+  const good = r.data.exampleSentences.filter((e) => usesTerm(e, input.selectedText, input.selectionKind));
+  if (!opts.lenient && good.length < Math.min(2, r.data.exampleSentences.length)) throw new Error("examples_miss_the_term");
+  return { ...r.data, synonyms, exampleSentences: good.length > 0 ? good : r.data.exampleSentences };
 }
+
+const RETRY_NOTE = (term: string) =>
+  `\nImportant: every example sentence must contain "${term}" itself (or a normal form of it), not a synonym. List only true synonyms that could replace it here, and fewer is fine.`;
 
 export interface ExplainResult { content: EnglishCardContent; source: Source; promptVersion: string }
 
@@ -91,7 +112,9 @@ export async function explain({ app, input }: { app: FirebaseApp; input: Explain
     hybrid: getGenerativeModel(ai, config),
     cloud: () => getGenerativeModel(ai, { mode: InferenceMode.ONLY_IN_CLOUD, inCloudParams: config.inCloudParams }),
     prompt: buildExplainPrompt(input),
-    parse: validateEnglishCard,
+    retryPrompt: buildExplainPrompt(input) + RETRY_NOTE(input.selectedText),
+    parse: (text) => validateEnglishCard(text, input),
+    lenient: (text) => validateEnglishCard(text, input, { lenient: true }),
   });
   return { content: value, source, promptVersion: ENGLISH_PROMPT_VERSION };
 }

@@ -816,8 +816,8 @@ When a learner selects a word, phrase, or sentence in Explore and presses **Expl
 - `meaningEn`: concise plain-English definition.
 - `contextualMeaningEn`: what the selected text means in this subtitle context.
 - `partOfSpeech`: nullable; primarily useful for single-word vocabulary.
-- `synonyms`: four to six relevant English synonyms or alternatives (fewer only when there are no more that fit).
-- `exampleSentences`: three or four natural English examples in different situations, not copied from the source subtitle.
+- `synonyms`: up to six true synonyms, meaning words or expressions that could replace the selected text in the subtitle without changing its meaning. Fewer, or none, is correct when fewer fit; the list is never padded with loosely related words. The app also drops a synonym that is the selected text itself, contains it, repeats another, or is a long paraphrase (more than five words).
+- `exampleSentences`: three or four natural English examples in different situations, not copied from the source subtitle. Each must use the selected text itself, in the same or a normal grammatical form (for example -ed, -ing, -s, or changed pronouns in a phrase), not a synonym. The app checks this. If fewer than two examples pass, it asks the cloud model once more with a corrected prompt, and keeps the examples that pass (or, if none pass, the model's own) rather than failing. A whole-sentence selection is exempt.
 - `usageNote`: optional short note explaining register, formality, or typical use.
 - `confidenceNote`: optional caution when the context is insufficient or the phrase is ambiguous.
 
@@ -1153,7 +1153,7 @@ This section is an implementation decision, not merely a conceptual distinction.
 | Core English learning card | Gemini Nano on desktop Chrome where available; cloud fallback | `PREFER_ON_DEVICE` | One request, single-turn, structured JSON |
 | Category classification | Same core card request | `PREFER_ON_DEVICE` | Enum category in schema |
 | English definition / contextual meaning | Same core card request | `PREFER_ON_DEVICE` | Simple English, concise |
-| English synonyms and examples | Same core card request | `PREFER_ON_DEVICE` | 4–6 synonyms; 3–4 examples |
+| English synonyms and examples | Same core card request | `PREFER_ON_DEVICE` | 0–6 true synonyms; 3–4 examples that use the term |
 | Translation into the learner's language | Gemini Nano on desktop Chrome when the language is supported on-device; cloud otherwise | `PREFER_ON_DEVICE` for supported languages, `ONLY_IN_CLOUD` for the rest | Support is probed at runtime (FR-AI-011); the SDK-reported source is displayed |
 | Idiom/slang explanation in the learner's language | Same routing as translation | Same | Natural contextual wording, not literal-only |
 | Flashcards, reveal, quiz assembly | Dashboard logic | No AI | Uses stored card fields |
