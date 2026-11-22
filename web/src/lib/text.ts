@@ -37,20 +37,30 @@ export function tokenize(sentence: string): Token[] {
 
 export const wordsOf = (sentence: string): Token[] => tokenize(sentence).filter((t) => t.isWord);
 
+// A selection is a "sentence" only when it is the whole line AND long enough to be one. A short line that is
+// selected whole ("Break a leg!", "Help me, help you.") is an expression, and is practised like any phrase.
+export const SENTENCE_MIN_WORDS = 7;
+const wordCount = (text: string): number => wordsOf(text).length;
+export const kindOf = (count: number, whole: boolean): SelectionKind => (count <= 1 ? "word" : whole && count >= SENTENCE_MIN_WORDS ? "sentence" : "phrase");
+
+// For cards saved before that rule: a short "sentence" card is really a phrase.
+export const effectiveKind = (selectedText: string, kind: string): string => (kind === "sentence" && wordCount(selectedText) < SENTENCE_MIN_WORDS ? (wordCount(selectedText) <= 1 ? "word" : "phrase") : kind);
+export const isSentenceCard = (c: { selectedText: string; selectionKind: string }): boolean => effectiveKind(c.selectedText, c.selectionKind) === "sentence";
+
 // The exact text the learner selected, with the character range inside the sentence.
 export function selectedFrom(sentence: string, words: Token[], sel: Selection): Selected | null {
   if (sel.whole) {
     const text = sentence.trim();
     if (!text) return null;
     const start = sentence.indexOf(text);
-    return { text, start, end: start + text.length, kind: "sentence" };
+    return { text, start, end: start + text.length, kind: kindOf(wordCount(text), true) };
   }
   const a = words[Math.min(sel.from, sel.to)];
   const b = words[Math.max(sel.from, sel.to)];
   if (!a || !b) return null;
   const text = sentence.slice(a.start, b.end);
   const lo = Math.min(sel.from, sel.to), hi = Math.max(sel.from, sel.to);
-  const kind: SelectionKind = lo === hi ? "word" : lo === 0 && hi === words.length - 1 ? "sentence" : "phrase";
+  const kind: SelectionKind = kindOf(hi - lo + 1, lo === 0 && hi === words.length - 1);
   return { text, start: a.start, end: b.end, kind };
 }
 

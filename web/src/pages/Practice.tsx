@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/useCards";
 import { categoriesPresent, categoryName, inCategory, parseCategory, practiceUrl } from "@/lib/category";
 import { QUIZ_MIN_CARDS } from "@/lib/quiz";
+import { isSentenceCard } from "@/lib/text";
 import { CATEGORY_PLURAL } from "@/lib/schemas";
 import { dueCount, mistakes } from "@/lib/session";
 import { speechSupported } from "@/lib/speech";
@@ -43,7 +44,7 @@ export default function Practice({ user }: { user: User }) {
   const scoped = inCategory(cards, cat);
   const due = dueCount(scoped, now);
   const wrong = mistakes(scoped).length;
-  const reversible = scoped.filter((c) => c.selectionKind !== "sentence").length;
+  const reversible = scoped.filter((c) => !isSentenceCard(c)).length;
   const where = categoryName(cat);
   const dueIn = (k: "all" | (typeof present)[number]) => dueCount(inCategory(cards, k), now);
   const choose = (k: string) => setParams(k === "all" ? {} : { cat: k }, { replace: true });

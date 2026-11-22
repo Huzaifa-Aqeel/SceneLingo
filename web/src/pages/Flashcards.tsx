@@ -14,6 +14,7 @@ import { translationKey } from "@/languages";
 import type { LearningCard } from "@/lib/schemas";
 import { categoryName, inCategory, parseCategory, practiceUrl } from "@/lib/category";
 import { gapFor, RATING_LABEL, type Rating } from "@/lib/schedule";
+import { isSentenceCard } from "@/lib/text";
 import { buildSession, type SessionKind } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +46,7 @@ function FlashcardSession({ user }: { user: User }) {
   const [queue, setQueue] = useState<LearningCard[] | null>(null);
   useEffect(() => {
     // Reverse cards ask for the term, so a whole sentence can't be one.
-    if (cards && queue === null) setQueue(buildSession(reverse ? inCategory(cards, cat).filter((c) => c.selectionKind !== "sentence") : inCategory(cards, cat), kind, new Date()));
+    if (cards && queue === null) setQueue(buildSession(reverse ? inCategory(cards, cat).filter((c) => !isSentenceCard(c)) : inCategory(cards, cat), kind, new Date()));
   }, [cards, queue, kind, reverse, cat]);
 
   const [index, setIndex] = useState(0);

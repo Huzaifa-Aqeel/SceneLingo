@@ -15,19 +15,20 @@ import { pickSeeds, readRecent, rememberSeed } from "@/lib/scenarios";
 import { buildSession } from "@/lib/session";
 import { createSpeaker, listenOnce, speak, speechSupported, stopSpeaking } from "@/lib/speech";
 import { headline, learnerLines, marked, MAX_SILENCES, MAX_TURNS, NUDGES, outcomeOf, ratingOf, type Line, type Outcome } from "@/lib/talk";
+import { effectiveKind, isSentenceCard } from "@/lib/text";
 import { cn } from "@/lib/utils";
 
 type Phase = "preparing" | "ready" | "live" | "finishing" | "result" | "error";
 type Turn = "partner" | "listening" | "thinking";
 
 const target = (c: LearningCard) => c.selectedText.replace(/^[\p{P}\s]+|[\p{P}\s]+$/gu, "");
-const forModel = (c: LearningCard) => ({ ...c, videoTitle: c.source.videoTitle });
+const forModel = (c: LearningCard) => ({ ...c, selectionKind: effectiveKind(c.selectedText, c.selectionKind), videoTitle: c.source.videoTitle });
 
 // An expression to talk about: the one asked for, otherwise a due one (never a whole sentence).
 function chooseCard(cards: readonly LearningCard[], id: string | null, cat: ReturnType<typeof parseCategory>): LearningCard | null {
   const named = id ? cards.find((c) => c.id === id) : undefined;
-  if (named && named.selectionKind !== "sentence") return named;
-  const pool = inCategory(cards, cat).filter((c) => c.selectionKind !== "sentence");
+  if (named && !isSentenceCard(named)) return named;
+  const pool = inCategory(cards, cat).filter((c) => !isSentenceCard(c));
   const few = buildSession(pool, "all", new Date(), 3);
   return few.length ? few[Math.floor(Math.random() * few.length)]! : null;
 }
@@ -97,7 +98,7 @@ export default function Talk({ user }: { user: User }) {
     setPhase("finishing");
     let v: Verdict | null = null;
     try { v = await judge({ app, scene: s, card: forModel(c), lines: all }); } catch { /* the result still shows, without the coach's note */ }
-    const o = outcomeOf(all, target(c), c.selectionKind, v?.similarExpression ?? null);
+    const o = outcomeOf(all, target(c), effectiveKind(c.selectedText, c.selectionKind), v?.similarExpression ?? null);
     setVerdict(v); setOutcome(o); setPhase("result");
     void recordReview(user.uid, c, ratingOf(o), "conversation", { schedule: false }).catch(() => {});
   }, [silence, user.uid]);

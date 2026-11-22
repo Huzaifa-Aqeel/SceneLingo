@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blankOut, cardIdFor, normalizeText, selectedFrom, splitSentences, tokenize, wordsOf } from "@/lib/text";
+import { blankOut, cardIdFor, effectiveKind, isSentenceCard, normalizeText, selectedFrom, splitSentences, tokenize, wordsOf } from "@/lib/text";
 import { describeGap, gapFor, isDue, LADDER_DAYS, nextReview } from "@/lib/schedule";
 import { buildOptions, buildQuestion, planQuiz, shuffle } from "@/lib/quiz";
 import { categoriesPresent, inCategory, parseCategory, practiceUrl } from "@/lib/category";
@@ -34,6 +34,28 @@ describe("sentences and selection", () => {
   it("keeps internal punctuation of a phrase", () => {
     const t = "Well, you know, it's fine.";
     expect(selectedFrom(t, wordsOf(t), { sentenceIndex: 0, from: 0, to: 2, whole: false })?.text).toBe("Well, you know");
+  });
+});
+
+describe("what counts as a sentence", () => {
+  const pick = (line: string, whole: boolean, from = 0, to?: number) => { const w = wordsOf(line); return selectedFrom(line, w, { sentenceIndex: 0, from, to: to ?? w.length - 1, whole }); };
+  it("treats a short line selected whole as a phrase, not a sentence", () => {
+    expect(pick("Help me, help you.", true)?.kind).toBe("phrase");
+    expect(pick("Help me, help you.", false)?.kind).toBe("phrase"); // all the words, picked by dragging
+    expect(pick("Break a leg!", true)?.kind).toBe("phrase");
+    expect(pick("Groggy.", true)?.kind).toBe("word");
+  });
+  it("still calls a long line selected whole a sentence", () => {
+    expect(pick("I think we're getting ahead of ourselves here.", true)?.kind).toBe("sentence");
+    expect(pick("I think we're getting ahead of ourselves here.", false)?.kind).toBe("sentence");
+    expect(pick("I think we're getting ahead of ourselves here.", false, 3, 6)?.kind).toBe("phrase");
+  });
+  it("reads older short 'sentence' cards as phrases, so they can be practised", () => {
+    expect(effectiveKind("Help me, help you.", "sentence")).toBe("phrase");
+    expect(effectiveKind("Groggy", "sentence")).toBe("word");
+    expect(effectiveKind("I think we're getting ahead of ourselves here.", "sentence")).toBe("sentence");
+    expect(isSentenceCard({ selectedText: "Break a leg!", selectionKind: "sentence" })).toBe(false);
+    expect(isSentenceCard({ selectedText: "I think we're getting ahead of ourselves here.", selectionKind: "sentence" })).toBe(true);
   });
 });
 
@@ -125,7 +147,7 @@ describe("quiz questions", () => {
     mk("b", "under the weather", "I'm under the weather today.", "slightly ill", "she feels sick"),
     mk("c", "break a leg", "Break a leg tonight!", "good luck", "he wishes her luck"),
     mk("d", "piece of cake", "That was a piece of cake.", "very easy", "the test was easy"),
-    mk("s", "Nothing lasts forever, does it?", "Nothing lasts forever, does it?", "things end", "she is sad", "sentence"),
+    mk("s", "Nothing lasts forever and nobody ever really knows why.", "Nothing lasts forever and nobody ever really knows why.", "things end", "she is sad", "sentence"),
   ];
   it("builds a complete-the-sentence question whose options are other expressions", () => {
     const q = buildQuestion(cards[0]!, cards, "complete", seeded())!;

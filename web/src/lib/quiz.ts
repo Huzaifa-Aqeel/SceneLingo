@@ -1,5 +1,5 @@
 // Multiple-choice questions built from the learner's own saved cards (no AI call needed).
-import { blankOut } from "./text";
+import { blankOut, isSentenceCard } from "./text";
 
 export interface Option { text: string; correct: boolean }
 
@@ -51,8 +51,8 @@ export function buildQuestion<C extends QuizCard>(card: C, all: readonly C[], fo
   if (format === "meaning") {
     options = buildOptions(card.meaningEn, others.map((c) => c.meaningEn), rng, 4, same.map((c) => c.meaningEn));
   } else if (format === "complete") {
-    if (!sentence || card.selectionKind === "sentence") return null;
-    options = buildOptions(card.selectedText, others.filter((c) => c.selectionKind !== "sentence").map((c) => c.selectedText), rng, 4, same.filter((c) => c.selectionKind !== "sentence").map((c) => c.selectedText));
+    if (!sentence || isSentenceCard(card)) return null;
+    options = buildOptions(card.selectedText, others.filter((c) => !isSentenceCard(c)).map((c) => c.selectedText), rng, 4, same.filter((c) => !isSentenceCard(c)).map((c) => c.selectedText));
   } else {
     if (!sentence) return null;
     options = buildOptions(card.contextualMeaningEn, others.map((c) => c.contextualMeaningEn), rng, 4, same.map((c) => c.contextualMeaningEn));
